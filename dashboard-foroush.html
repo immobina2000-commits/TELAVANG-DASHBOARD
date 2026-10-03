@@ -1743,6 +1743,369 @@ TVL.forecast = (function(){
     workingDaysList,sumRange,weekdayAverages,isWorkingDay,m1RunRate,m2Weighted,m3Weekday,m4Trend,m5Historical};
 })();
 
+/* ---------- core/forecastMonthly.js ---------- */
+/* =====================================================================================
+   core/forecastMonthly.js — NEXT CALENDAR MONTH forecast, per representative × per product
+   (تخم‌مرغ / تلابار separately), plus a reconciled network-wide forecast (Phase F2).
+
+   WHY A SEPARATE MODULE FROM core/forecast.js?
+     core/forecast.js (the «ماه جاری» / end-of-month engine, Phase F1) forecasts how a month
+     ALREADY IN PROGRESS will finish, from DAILY selling-day data. This module forecasts a
+     month that has not started yet at all — the one right after the latest month in the data
+     — so it has no partial-month daily signal to lean on and must reason entirely from the
+     entity's MONTHLY sales history. That is a different problem (classic low-frequency time-
+     series forecasting with very few observations per entity), so it gets its own, purpose-
+     built pipeline rather than being bent to fit the daily engine. Both stay available in the
+     dashboard (views/forecast.js toggles between them) and neither module alters the other.
+
+   DATA REALITY THIS WAS DESIGNED AGAINST (discovered from the live dataset, not assumed):
+     ~7 Jalali months of history (۱۴۰۵/۰۱ … ۱۴۰۵/۰۷), the last one still in progress. That is
+     enough for honest Naive / Mean / Moving-Average / Exponential-Smoothing / Holt-trend
+     forecasting with Rolling-Origin backtesting, but NOT enough to ever reliably detect
+     monthly seasonality (needs multiple full yearly cycles) — so this module never fabricates
+     a seasonal model; Seasonality is reported as "insufficient data" whenever
+     months-of-history < fcmSeasonMinMonths, which the real data never reaches yet. The
+     architecture does not hard-code that, though: the moment more months accumulate, the
+     exact same code will start finding (or honestly rejecting) a seasonal pattern on its own.
+
+   PIPELINE (mirrors the brief's requested architecture):
+     Data Preparation   → monthlySeries() — one real-valued (no padding!) series per entity ×
+                           product, built only from fully-completed months (never the in-
+                           progress latest month, never an invented future month), with a
+                           principled missing-vs-zero rule (see monthlySeries' own comment).
+     Feature Engineering → trendLabel(), seasonalityCheck(), intermittency(), crossProductCorr()
+                           — each an evidence field attached to the output, never a silent
+                           override of whichever model Backtesting actually picked.
+     Candidate models    → naiveModel … crostonModel (§ below), each a pure
+                           (series) → {forecast} function, run on both the raw series and a
+                           Backtest-time-safe Winsorized variant (robust to real-but-extreme
+                           outliers without ever deleting a data point).
+     Backtesting          → backtestEntity() — Rolling-Origin / expanding-window one-step-ahead
+                           CV: forecast month k+1 from months[0..k] ONLY, for every k the
+                           series allows; compare against the real, now-known month k+1.
+     Evaluation            → MAE, RMSE, WAPE, sMAPE (sMAPE only ever shown, never used to rank,
+                           since it is unstable exactly where actuals are small/zero — WAPE
+                           is the ranking metric, per the brief).
+     Model selection       → pick the lowest-WAPE candidate; on a near-tie, prefer the
+                           structurally simpler model (Naive < Mean < MA < WMA < SES < Holt <
+                           Croston), which is also where Winsorizing only wins if it actually
+                           reduced backtest error — never assumed.
+     Forecast               → forecastEntity() — the winning model trained on ALL completed
+                           months → next month's Point / Lower / Upper (built from that
+                           model's own backtest residuals, never a fabricated ±X %).
+     Reconciliation          → buildNetwork() — Σ(representative forecasts) vs a Direct
+                           network-level forecast from the SAME pipeline; both shown, with the
+                           gap explained (§13 of the brief).
+   ===================================================================================== */
+TVL.forecastMonthly = (function(){
+  const C=TVL.config, J=TVL.jalali, F=TVL.fmt, mk=J.monthKey;
+  const T=Object.assign({
+    fcmMinMonths:1,          // below this many completed months of history at all → Insufficient Data (no signal whatsoever)
+    fcmSeasonMinMonths:12,   // below this many months, monthly seasonality is NEVER claimed (not enough to see even one full cycle)
+    fcmIntermittentZeroShare:0.4, // ≥ this share of completed months at zero (with enough history) → treat as intermittent demand
+    fcmIntermittentMinMonths:3,
+    fcmTrendThreshold:0.08,  // relative change (second half vs first half of history) beyond which Trend is Increasing/Decreasing, not Stable
+    fcmWinsorK:1.5           // IQR multiplier used to winsorize (cap, never delete) extreme months before building the robust model variants
+  },C.thresholds);
+
+  /* ---- Data Preparation: one entity's monthly series for one product ----
+     "Entity" is either one representative or null (meaning: every record in scope, i.e. the
+     network total for that product). Only FULLY COMPLETED months are used — the month the
+     dataset's own latest date falls inside is always excluded here (it is a partial month, not
+     comparable in magnitude to a full one) and is never padded forward into a forecast target
+     that does not exist yet.
+     Missing vs. zero: a month BEFORE the entity's very first recorded row for this product is
+     left OUT of the series entirely (the entity was not yet active — that is not a "zero sales
+     month", it is "not yet a data point"). A month AFTER that first row, in which the entity
+     has no rows at all, IS counted as a real 0 — the surrounding network clearly kept recording
+     data in that month (other entities have rows in it), so an active entity's silence in it is
+     a genuine zero, not a data gap. This mirrors core/forecast.js's missing-day principle, one
+     level up (months instead of days). */
+  function monthlySeries(recs,completedMonthKeys){
+    if(!recs.length) return {months:[],values:[],firstMonthKey:null};
+    const sums=new Map(); recs.forEach(r=>{ const k=mk(r.year,r.month); sums.set(k,(sums.get(k)||0)+r.v); });
+    const first=Math.min(...recs.map(r=>mk(r.year,r.month)));
+    const months=completedMonthKeys.filter(k=>k>=first).sort((a,b)=>a-b);
+    const values=months.map(k=>sums.get(k)||0);
+    return {months,values,firstMonthKey:first};
+  }
+
+  /* ---- Winsorize (cap, never delete) extreme months using Tukey fences from the series
+     ITSELF at the time it is used — so Backtesting, which only ever sees data up to its own
+     simulated cutoff, never winsorizes using a bound computed from months it has not reached
+     yet (no leakage). A capped value still counts fully in every model's math; nothing is
+     thrown away as "bad data" without evidence it was a data error (it may be a genuine spike
+     the business should still know about — see the raw-vs-robust comparison in Evaluation). */
+  function winsorize(values){
+    if(values.length<4) return values.slice();
+    const s=values.slice().sort((a,b)=>a-b);
+    const q=p=>{ const i=(s.length-1)*p,lo=Math.floor(i); return s[lo]+(s[Math.ceil(i)]-s[lo])*(i-lo); };
+    const q1=q(.25),q3=q(.75),iqr=q3-q1,lo=q1-T.fcmWinsorK*iqr,hi=q3+T.fcmWinsorK*iqr;
+    return values.map(v=>Math.min(hi,Math.max(lo,v)));
+  }
+
+  /* ---- Candidate models: each takes the series values ([v1..vn], n ≥ 1) and returns a point
+     forecast for value n+1. None look past index n-1 — Backtesting enforces this by simply
+     never handing them more than that. ---- */
+  const models={
+    naive:{name:'آخرین ماه (Naive)',simple:0,min:1,fn:v=>v[v.length-1]},
+    mean:{name:'میانگین کل تاریخچه',simple:1,min:1,fn:v=>v.reduce((a,b)=>a+b,0)/v.length},
+    ma:{name:'میانگین متحرک (۳ ماه)',simple:2,min:2,fn:v=>{ const w=v.slice(-Math.min(3,v.length)); return w.reduce((a,b)=>a+b,0)/w.length; }},
+    wma:{name:'میانگین متحرک وزنی',simple:3,min:2,fn:v=>{ const w=v.slice(-Math.min(4,v.length)); let s=0,wt=0; w.forEach((x,i)=>{ const weight=i+1; s+=weight*x; wt+=weight; }); return s/wt; }},
+    ses:{name:'هموارسازی نمایی ساده (SES)',simple:4,min:2,fn:v=>{
+      let best=null,bestSse=Infinity;
+      for(let a=1;a<=9;a++){ const alpha=a/10; let level=v[0],sse=0;
+        for(let i=1;i<v.length;i++){ const err=v[i]-level; sse+=err*err; level=level+alpha*err; }
+        if(sse<bestSse){ bestSse=sse; best=alpha; } }
+      let level=v[0]; for(let i=1;i<v.length;i++) level=level+best*(v[i]-level);
+      return level; }},
+    holt:{name:'روند نمایی هولت (Holt)',simple:5,min:4,fn:v=>{
+      let bestA=0.3,bestB=0.1,bestSse=Infinity;
+      for(let a=2;a<=8;a+=2) for(let b=1;b<=5;b+=2){ const alpha=a/10,beta=b/10;
+        let level=v[0],trend=v[1]-v[0],sse=0;
+        for(let i=1;i<v.length;i++){ const pred=level+trend,err=v[i]-pred; sse+=err*err;
+          const newLevel=level+trend+alpha*err; trend=trend+alpha*beta*err; level=newLevel; }
+        if(sse<bestSse){ bestSse=sse; bestA=alpha; bestB=beta; } }
+      let level=v[0],trend=v[1]-v[0];
+      for(let i=1;i<v.length;i++){ const pred=level+trend,err=v[i]-pred; const newLevel=level+trend+bestA*err; trend=trend+bestA*bestB*err; level=newLevel; }
+      return Math.max(0,level+trend); }},
+    croston:{name:'Croston (تقاضای متناوب)',simple:6,min:3,fn:v=>{
+      const nz=[]; let gap=0;
+      v.forEach(x=>{ gap++; if(x>0){ nz.push({size:x,interval:gap}); gap=0; } });
+      if(!nz.length) return 0;
+      const avgSize=nz.reduce((a,b)=>a+b.size,0)/nz.length, avgInt=nz.reduce((a,b)=>a+b.interval,0)/nz.length;
+      return avgInt>0?avgSize/avgInt:avgSize; }}
+  };
+
+  /* ---- Evaluation metrics over one model's backtest residuals ---- */
+  function metrics(errs,actuals){
+    const n=errs.length; if(!n) return null;
+    const abs=errs.map(Math.abs);
+    const mae=abs.reduce((a,b)=>a+b,0)/n, rmse=Math.sqrt(errs.reduce((a,b)=>a+b*b,0)/n);
+    const sumAbsActual=actuals.reduce((a,b)=>a+Math.abs(b),0);
+    const wape=sumAbsActual>0?abs.reduce((a,b)=>a+b,0)/sumAbsActual:null;
+    const smape=actuals.reduce((s,a,i)=>{ const d=Math.abs(a)+Math.abs(a-errs[i]); return s+(d>0?2*Math.abs(errs[i])/d:0); },0)/n;
+    return {n,mae,rmse,wape,smape};
+  }
+
+  /* ---- Rolling-Origin / expanding-window backtest for ONE (model, variant) on one series.
+     At cutoff k (k = minSize .. n-1), the model only ever receives values[0..k-1] and is
+     scored against the real values[k] — no later month, in this series or any other, reaches
+     it. Returns {errs, actuals} for metrics(), per model id. ---- */
+  function backtestSeries(values){
+    const variants={raw:values,robust:winsorize(values)};
+    const results={}; // id -> {errs:[], actuals:[]}
+    Object.entries(models).forEach(([id,m])=>{
+      ['raw','robust'].forEach(variant=>{
+        const key=id+(variant==='robust'?'_r':'');
+        const errs=[],actuals=[];
+        for(let k=Math.max(m.min,1);k<values.length;k++){
+          const train=variants[variant].slice(0,k); if(train.length<m.min) continue;
+          let f; try{ f=m.fn(train); }catch(e){ f=null; }
+          if(f===null||!isFinite(f)) continue;
+          errs.push(f-values[k]); actuals.push(values[k]);
+        }
+        if(errs.length) results[key]={errs,actuals,modelId:id,variant,name:m.name+(variant==='robust'?' + Winsorize':''),simple:m.simple};
+      });
+    });
+    return results;
+  }
+
+  function selectModel(backtestResults){
+    const cands=Object.values(backtestResults).map(r=>Object.assign({},r,{m:metrics(r.errs,r.actuals)})).filter(r=>r.m&&r.m.wape!==null);
+    if(!cands.length) return null;
+    cands.sort((a,b)=>a.m.wape-b.m.wape||a.simple-b.simple);
+    const best=cands[0];
+    const nearTies=cands.filter(c=>c.m.wape<=best.m.wape*1.1);
+    nearTies.sort((a,b)=>a.simple-b.simple);
+    return nearTies[0];
+  }
+
+  /* ---- Trend (evidence field, never overrides the chosen model): relative change between the
+     mean of the first half and the mean of the second half of the entity's OWN history. ---- */
+  function trendLabel(values){
+    if(values.length<3) return {label:'نامشخص',reason:'کمتر از ۳ ماه سابقه برای تشخیص روند.'};
+    const half=Math.floor(values.length/2);
+    const a=values.slice(0,half).reduce((x,y)=>x+y,0)/half, b=values.slice(half).reduce((x,y)=>x+y,0)/(values.length-half);
+    if(a<=0&&b<=0) return {label:'نامشخص',reason:'فروش در هر دو نیمه‌ی تاریخچه صفر بوده.'};
+    const rel=a>0?(b-a)/a:(b>0?1:0);
+    if(rel>=T.fcmTrendThreshold) return {label:'افزایشی',reason:'میانگین نیمه‌ی اخیر تاریخچه '+F.pct(rel,0)+' بالاتر از نیمه‌ی ابتدایی است.',rel};
+    if(rel<=-T.fcmTrendThreshold) return {label:'کاهشی',reason:'میانگین نیمه‌ی اخیر تاریخچه '+F.pct(Math.abs(rel),0)+' پایین‌تر از نیمه‌ی ابتدایی است.',rel};
+    return {label:'باثبات',reason:'تغییر میانگین بین دو نیمه‌ی تاریخچه کمتر از '+F.pct(T.fcmTrendThreshold,0)+' است.',rel};
+  }
+
+  function seasonalityCheck(monthsLength){
+    if(monthsLength<T.fcmSeasonMinMonths) return {label:'داده کافی نیست',reason:'برای تشخیص الگوی فصلی/ماهانه معتبر دست‌کم '+T.fcmSeasonMinMonths+' ماه سابقه لازم است؛ این سابقه هنوز '+monthsLength+' ماه است.'};
+    return {label:'نامشخص',reason:'تحلیل الگوی فصلی روی این حجم داده هنوز در این نسخه پیاده‌سازی نشده.'};
+  }
+
+  function intermittency(values){
+    if(values.length<T.fcmIntermittentMinMonths) return {isIntermittent:false,zeroShare:values.length?values.filter(v=>v===0).length/values.length:0};
+    const zeroShare=values.filter(v=>v===0).length/values.length;
+    return {isIntermittent:zeroShare>=T.fcmIntermittentZeroShare,zeroShare};
+  }
+
+  /* informational only — NOT used to blend the two products' forecasts together (§10: each
+     product's forecast must stay independently computed and interpretable). */
+  function crossProductCorr(eggVals,eggMonths,telVals,telMonths){
+    const common=eggMonths.filter(k=>telMonths.includes(k)); if(common.length<4) return null;
+    const e=common.map(k=>eggVals[eggMonths.indexOf(k)]), t=common.map(k=>telVals[telMonths.indexOf(k)]);
+    const me=e.reduce((a,b)=>a+b,0)/e.length, mt=t.reduce((a,b)=>a+b,0)/t.length;
+    let cov=0,ve=0,vt=0; e.forEach((x,i)=>{ cov+=(x-me)*(t[i]-mt); ve+=(x-me)**2; vt+=(t[i]-mt)**2; });
+    if(ve<=0||vt<=0) return null;
+    return {r:cov/Math.sqrt(ve*vt),n:common.length};
+  }
+
+  /* ---- Prediction interval from the WINNING model's own backtest residuals (never a flat
+     assumed ±X %). Falls back to a wide, explicitly-flagged band when too few residuals (or
+     none, e.g. a brand-new entity with only 1 month) exist to estimate one honestly. ---- */
+  function predictionInterval(chosen,point,historyLen){
+    const residuals=chosen?chosen.errs:[];
+    if(residuals.length>=5){
+      const sorted=residuals.slice().sort((a,b)=>a-b);
+      const q=p=>{ const i=(sorted.length-1)*p,lo=Math.floor(i); return sorted[lo]+(sorted[Math.ceil(i)]-sorted[lo])*(i-lo); };
+      let lower=point+q(.1), upper=point+q(.9);
+      if(lower>upper){ const t=lower; lower=upper; upper=t; }
+      return {lower:Math.max(0,Math.min(lower,point)),upper:Math.max(upper,point),method:'صدک ۱۰-۹۰ خطای Backtest ('+residuals.length+' نقطه)'};
+    }
+    if(residuals.length>=1){
+      const mae=residuals.reduce((a,b)=>a+Math.abs(b),0)/residuals.length, widen=residuals.length<=2?2.2:1.6;
+      return {lower:Math.max(0,point-mae*widen),upper:point+mae*widen,method:'باند بر مبنای MAE خطای Backtest ('+residuals.length+' نقطه؛ کم)'};
+    }
+    // no backtest points at all possible (e.g. only 1 historical month) — openly a rough fallback, never claimed precise
+    return {lower:point*0.5,upper:point*1.6,method:'بازه‌ی تقریبی (داده ناکافی برای Backtest) — فقط جهت‌نما، نه بازه‌ی آماری'};
+  }
+
+  function confidenceLevel(monthsLen,nonZeroMonths,chosen,volatilityCv){
+    if(monthsLen<2) return {level:'Low',reason:'فقط '+monthsLen+' ماه سابقه موجود است؛ هر Forecast روی این حجم داده نامطمئن است.'};
+    const wape=chosen&&chosen.m?chosen.m.wape:null, n=chosen&&chosen.m?chosen.m.n:0;
+    if(monthsLen>=5&&n>=3&&wape!==null&&wape<=0.20&&(volatilityCv===null||volatilityCv<=1.2))
+      return {level:'High',reason:monthsLen+' ماه سابقه، '+n+' نقطه‌ی Backtest، خطای تاریخی مدل پایین (WAPE ≈ '+F.pct(wape,0)+').'};
+    if(monthsLen>=3&&(n>=1||nonZeroMonths>=2)) return {level:'Medium',reason:monthsLen+' ماه سابقه'+(n?('، '+n+' نقطه‌ی Backtest'):'')+'؛ داده قابل‌قبول اما محدود است.'};
+    return {level:'Low',reason:monthsLen+' ماه سابقه'+(n?('، '+n+' نقطه‌ی Backtest'):'، بدون نقطه‌ی قابل Backtest')+'؛ عدم‌قطعیت بالاست.'};
+  }
+
+  /* ---- One entity's (one representative, or the network total) full pipeline for ONE product ---- */
+  function forecastEntityProduct(recs,completedMonthKeys){
+    const s=monthlySeries(recs,completedMonthKeys);
+    if(!s.values.length) return {status:'Insufficient Data',reason:'هیچ سابقه‌ی فروش این محصول برای این موجودیت در داده ثبت نشده است.',months:0};
+    const nonZero=s.values.filter(v=>v>0).length;
+    if(nonZero===0&&s.values.length<T.fcmMinMonths+1){
+      // every recorded month is zero AND history itself is at (or below) the no-signal floor
+      return {status:'Insufficient Data',reason:'در '+s.values.length+' ماه موجود، هیچ فروش غیرصفری ثبت نشده است.',months:s.values.length};
+    }
+    const bt=backtestSeries(s.values);
+    const chosen=selectModel(bt);
+    const mean=s.values.reduce((a,b)=>a+b,0)/s.values.length;
+    const sd=Math.sqrt(s.values.reduce((a,b)=>a+(b-mean)**2,0)/s.values.length);
+    const volatilityCv=mean>0?sd/mean:null;
+    const interm=intermittency(s.values);
+    let point,modelName,explain;
+    if(chosen){
+      const variantVals=chosen.variant==='robust'?winsorize(s.values):s.values;
+      point=models[chosen.modelId].fn(variantVals);
+      modelName=chosen.name;
+    } else {
+      // too little history for any backtest point (e.g. 1 month) — the only honest forecast is that one month's own value / history mean
+      point=mean; modelName='میانگین تاریخچه (بدون امکان Backtest)';
+    }
+    point=Math.max(0,point);
+    const trend=trendLabel(s.values);
+    const season=seasonalityCheck(s.values.length);
+    const iv=predictionInterval(chosen,point,s.values.length);
+    const conf=confidenceLevel(s.values.length,nonZero,chosen,volatilityCv);
+    const recentAvg=s.values.slice(-Math.min(2,s.values.length)).reduce((a,b)=>a+b,0)/Math.min(2,s.values.length);
+    explain = chosen
+      ? ('Forecast بر اساس «'+modelName+'» که در Backtesting روی '+chosen.m.n+' نقطه‌ی تاریخی، کمترین خطا (WAPE ≈ '+(chosen.m.wape!==null?F.pct(chosen.m.wape,0):'نامشخص')+') را در میان '+Object.keys(bt).length+' مدل/حالتِ بررسی‌شده داشته است'+(trend.label!=='نامشخص'?('؛ روند تاریخی این موجودیت '+trend.label+' است'):'')+'.')
+      : ('داده برای Backtesting واقعی کافی نیست (فقط '+s.values.length+' ماه سابقه)؛ Forecast بر پایه‌ی میانگین همان سابقه‌ی محدود است و باید محتاطانه تفسیر شود.');
+    return {status:'Forecasted',point,lower:iv.lower,upper:iv.upper,intervalMethod:iv.method,
+      model:modelName,modelId:chosen?chosen.modelId:'mean_fallback',variant:chosen?chosen.variant:'raw',
+      backtest:chosen?chosen.m:null,candidatesEvaluated:Object.keys(bt).length,
+      months:s.values.length,nonZeroMonths:nonZero,historicalAverage:mean,recentAverage:recentAvg,
+      trend,seasonality:season,intermittent:interm.isIntermittent,volatilityCv,confidence:conf,explain,
+      series:s,allCandidates:bt};
+  }
+
+  /* ---- Top level: builds the whole next-month forecast — every representative in scope ×
+     both products — plus the reconciled network total. Honours the current filter context
+     exactly like the rest of the dashboard (TVL.filters.match), same as core/forecast.js. ---- */
+  function build(ds,st){
+    const dsMax=ds.meta.dateMax; if(dsMax===null) return null;
+    const dm=J.fromJdn(dsMax), currentMonthKey=mk(dm.y,dm.m), targetMonthKey=currentMonthKey+1;
+    const completedMonthKeys=ds.meta.months.filter(k=>k<currentMonthKey);
+    const products=C.products.map(p=>p.key);
+    const base={}; products.forEach(p=>{ base[p]=ds.records.filter(r=>r.product===p&&TVL.filters.match(r,st,'products')); });
+    const repNames=[...new Set(products.flatMap(p=>base[p].filter(r=>r.representative).map(r=>r.representative)))].sort((a,b)=>a.localeCompare(b,'fa'));
+
+    const perProductTotal={}, perProductRepResults={};
+    products.forEach(p=>{
+      perProductTotal[p]=forecastEntityProduct(base[p],completedMonthKeys);
+      perProductRepResults[p]=new Map();
+      repNames.forEach(name=>{ perProductRepResults[p].set(name,forecastEntityProduct(base[p].filter(r=>r.representative===name),completedMonthKeys)); });
+    });
+
+    const reps=repNames.map(name=>{
+      const row={name};
+      products.forEach(p=>{ row[p]=perProductRepResults[p].get(name); });
+      const corr=(row[products[0]]&&row[products[1]]&&row[products[0]].series&&row[products[1]].series)
+        ?crossProductCorr(row[products[0]].series.values,row[products[0]].series.months,row[products[1]].series.values,row[products[1]].series.months):null;
+      row.crossProductCorrelation=corr;
+      return row;
+    });
+
+    const network={};
+    products.forEach(p=>{
+      const direct=perProductTotal[p];
+      const sumReps=reps.reduce((s,r)=>s+(r[p]&&r[p].status==='Forecasted'?r[p].point:0),0);
+      // Sum-of-reps "retroactive" backtest: at each historical cutoff, sum each rep's ALREADY-
+      // chosen model's 1-step forecast from data truncated to that cutoff, compare to the real
+      // network total that month. (Caveat, disclosed in the UI: the MODEL CHOICE itself was
+      // selected using each rep's full history, so this measures the chosen model's stability
+      // at earlier cutoffs, not a fully independent historical re-selection — a cheaper, still
+      // informative proxy given the dataset's size.)
+      const sumRepsErrs=[],sumRepsActuals=[];
+      const totalSeries=monthlySeries(base[p],completedMonthKeys);
+      if(totalSeries.values.length>=2){
+        for(let k=1;k<totalSeries.values.length;k++){
+          const cutoffMonthKey=totalSeries.months[k-1];
+          let sumAtCutoff=0,any=false;
+          reps.forEach(r=>{ const rr=r[p]; if(!rr||rr.status!=='Forecasted') return;
+            const rs=monthlySeries(base[p].filter(x=>x.representative===r.name),completedMonthKeys.filter(c=>c<=cutoffMonthKey));
+            if(!rs.values.length) return; any=true;
+            const variantVals=rr.variant==='robust'?winsorize(rs.values):rs.values;
+            let f; try{ f=models[rr.modelId]?models[rr.modelId].fn(variantVals):rs.values[rs.values.length-1]; }catch(e){ f=rs.values[rs.values.length-1]; }
+            sumAtCutoff+=Math.max(0,f||0); });
+          if(any){ sumRepsErrs.push(sumAtCutoff-totalSeries.values[k]); sumRepsActuals.push(totalSeries.values[k]); }
+        }
+      }
+      const sumRepsMetrics=metrics(sumRepsErrs,sumRepsActuals);
+      const directMetrics=direct.backtest;
+      let recommendation='sum', recommendReason='طبق روش پیش‌فرض گزارش مدیریتی، Σ پیش‌بینی نمایندگان به‌عنوان Forecast عملیاتی شبکه در نظر گرفته می‌شود.';
+      if(directMetrics&&directMetrics.wape!==null&&(!sumRepsMetrics||sumRepsMetrics.wape===null||directMetrics.wape<sumRepsMetrics.wape*0.8)){
+        recommendation='direct'; recommendReason='در Backtesting، Forecast مستقیم سطح شبکه خطای به‌روشنی پایین‌تری نسبت به Σ نمایندگان داشت (WAPE '+F.pct(directMetrics.wape,0)+' در برابر '+(sumRepsMetrics&&sumRepsMetrics.wape!==null?F.pct(sumRepsMetrics.wape,0):'نامشخص')+')؛ بنابراین برای این محصول روش مستقیم پیشنهاد می‌شود.';
+      }
+      network[p]={direct,sumReps,diff:direct.status==='Forecasted'?direct.point-sumReps:null,sumRepsBacktest:sumRepsMetrics,directBacktest:directMetrics,recommendation,recommendReason};
+    });
+
+    return {targetMonthKey,currentMonthKey,completedMonthKeys,dsMax,products,reps,network,
+      forecastedCount:reps.filter(r=>products.every(p=>r[p]&&r[p].status==='Forecasted')).length,
+      partialCount:reps.filter(r=>products.some(p=>r[p]&&r[p].status==='Forecasted')&&products.some(p=>!r[p]||r[p].status!=='Forecasted')).length,
+      insufficientCount:reps.filter(r=>products.every(p=>!r[p]||r[p].status!=='Forecasted')).length};
+  }
+
+  const cache=new Map();
+  function compute(ds,st){
+    const key=ds.version+'|'+JSON.stringify(st);
+    if(cache.has(key)) return cache.get(key);
+    if(cache.size>10) cache.clear();
+    const r=build(ds,st); cache.set(key,r); return r;
+  }
+  function clearCache(){ cache.clear(); }
+
+  return {compute,clearCache,build,forecastEntityProduct,monthlySeries,backtestSeries,selectModel,predictionInterval,confidenceLevel,
+    trendLabel,seasonalityCheck,intermittency,crossProductCorr,winsorize,models};
+})();
+
 /* ---------- core/market.js ---------- */
 /* ===== core/market.js — population-based share (Phase 18). Every input is labelled FACT / ASSUMPTION / ESTIMATE / CALCULATED. ===== */
 TVL.market = (function(){
@@ -2855,10 +3218,116 @@ TVL.views.forecast={render(app){
       footer:rs=>'<td></td><td>جمع</td><td class="num">'+F.n(rs.reduce((s,r)=>s+(r.insufficient?0:r.toDate),0))+'</td><td class="num">'+F.n(rs.reduce((s,r)=>s+(r.insufficient?0:r.point),0))+'</td>'+'<td colspan="'+(cols.length-4)+'"></td>'});
   }
 
+  /* =====================================================================================
+     «ماه آینده» (Next Month) — renders TVL.forecastMonthly's output. Separate render path
+     from the «ماه جاری» (end-of-month) one above; neither touches the other's code or state.
+     ===================================================================================== */
+  const FM=TVL.forecastMonthly;
+  const fmtRange=(lo,hi)=>F.n(Math.round(lo))+' – '+F.n(Math.round(hi));
+  function fmProductCell(r,p){
+    const e=r[p]; if(!e) return '<span class="flat">—</span>';
+    if(e.status!=='Forecasted') return '<span class="tag t-low">بدون سابقه</span>';
+    return '<b>'+F.n(Math.round(e.point))+'</b><div class="s">'+fmtRange(e.lower,e.upper)+'</div>';
+  }
+  function fmStatusOf(r,p){ const e=r[p]; return e?e.status:'Insufficient Data'; }
+  function fmConfOf(r,p){ const e=r[p]; return (e&&e.status==='Forecasted')?e.confidence.level:null; }
+
+  function nextMonthNetworkCards(nf){
+    return '<div class="grid2">'+nf.products.map(p=>{
+      const n=nf.network[p]; const d=n.direct;
+      const recVal=n.recommendation==='direct'?d.point:n.sumReps;
+      const recLabel=n.recommendation==='direct'?'Forecast مستقیم شبکه':'Σ Forecast نمایندگان';
+      return '<div class="panel"><h2>Forecast شبکه — '+esc(p)+'</h2><p class="sub">ماه هدف: '+esc(F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m))+'</p>'
+        +'<div class="kpis">'
+          +TVL.kpi.card({label:'Forecast عملیاتی ('+recLabel+')',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:n.recommendReason})
+          +TVL.kpi.card({label:'Σ Forecast نمایندگان',raw:F.n(Math.round(n.sumReps))+U_small})
+          +TVL.kpi.card({label:'Forecast مستقیم شبکه',raw:d.status==='Forecasted'?(F.n(Math.round(d.point))+U_small):'<span class="flat">—</span>',extra:d.status==='Forecasted'?('بازه: '+fmtRange(d.lower,d.upper)):''})
+          +TVL.kpi.card({label:'اختلاف (مستقیم − Σنمایندگان)',raw:(n.diff===null?'<span class="flat">—</span>':('<span class="'+F.cls(n.diff)+'">'+F.sgnN(Math.round(n.diff))+'</span>'+U_small))})
+          +TVL.kpi.card({label:'خطای Backtest — مستقیم',raw:(n.directBacktest&&n.directBacktest.wape!==null)?F.pct(n.directBacktest.wape,0):'<span class="flat">—</span>',extra:n.directBacktest?('MAE ≈ '+F.n(Math.round(n.directBacktest.mae))+' · '+n.directBacktest.n+' نقطه'):''})
+          +TVL.kpi.card({label:'خطای Backtest — Σنمایندگان',raw:(n.sumRepsBacktest&&n.sumRepsBacktest.wape!==null)?F.pct(n.sumRepsBacktest.wape,0):'<span class="flat">—</span>',extra:n.sumRepsBacktest?('MAE ≈ '+F.n(Math.round(n.sumRepsBacktest.mae))+' · '+n.sumRepsBacktest.n+' نقطه'):''})
+          +TVL.kpi.card({label:'مدل منتخب (سطح شبکه)',raw:d.status==='Forecasted'?esc(d.model):'<span class="flat">—</span>'})
+        +'</div></div>';
+    }).join('')+'</div>';
+  }
+
+  function nextMonthRepTable(nf){
+    const rows=nf.reps;
+    const confRank={High:3,Medium:2,Low:1};
+    const overallConf=r=>{ const cs=nf.products.map(p=>fmConfOf(r,p)).filter(Boolean); if(!cs.length) return null;
+      return cs.reduce((worst,c)=>(confRank[c]<confRank[worst]?c:worst),cs[0]); };
+    const cols=[
+      {key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)},
+      {key:'egg',label:'Forecast تخم‌مرغ',num:true,sortVal:r=>r['تخم‌مرغ']&&r['تخم‌مرغ'].status==='Forecasted'?r['تخم‌مرغ'].point:-1,cell:r=>fmProductCell(r,'تخم‌مرغ')},
+      {key:'tel',label:'Forecast تلابار',num:true,sortVal:r=>r['تلابار']&&r['تلابار'].status==='Forecasted'?r['تلابار'].point:-1,cell:r=>fmProductCell(r,'تلابار')},
+      {key:'trend',label:'روند',cell:r=>nf.products.map(p=>{ const e=r[p]; return e&&e.trend?('<div class="s">'+p+': '+esc(e.trend.label)+'</div>'):''; }).join('')},
+      {key:'err',label:'خطای Backtest (WAPE)',num:true,
+        sortVal:r=>{ const vals=nf.products.map(p=>r[p]&&r[p].backtest&&r[p].backtest.wape!=null?r[p].backtest.wape:null).filter(v=>v!==null); return vals.length?Math.min(...vals):2; },
+        cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?('<div class="s">'+p+': '+F.pct(e.backtest.wape,0)+'</div>'):''; }).join('')||'<span class="flat">—</span>'},
+      {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=overallConf(r); return c?confRank[c]:0; },cell:r=>{ const c=overallConf(r); return c?confBadge(c):'<span class="flat">—</span>'; }},
+      {key:'rng',label:'بازه Forecast',cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.status==='Forecasted')?('<div class="s">'+p+': '+fmtRange(e.lower,e.upper)+'</div>'):''; }).join('')},
+      {key:'model',label:'مدل انتخاب‌شده',cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.status==='Forecasted')?('<div class="s">'+p+': '+esc(e.model)+'</div>'):''; }).join('')},
+      {key:'status',label:'وضعیت داده',cell:r=>nf.products.map(p=>{ const st=fmStatusOf(r,p); return st==='Forecasted'?('<span class="tag t-pos">'+p+': آماده</span>'):('<span class="tag t-low">'+p+': '+(r[p]?'بدون سابقه':'—')+'</span>'); }).join(' ')}
+    ];
+    return UI.table('fmRepTbl',{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-reps',sort:['egg',-1]});
+  }
+
+  function nextMonthMethodology(nf){
+    const rows=[
+      ['آخرین ماه کامل در داده',F.monthLabel(J.fromMonthKey(nf.currentMonthKey-1).y,J.fromMonthKey(nf.currentMonthKey-1).m)+' (ماه جاری «'+F.monthLabel(J.fromMonthKey(nf.currentMonthKey).y,J.fromMonthKey(nf.currentMonthKey).m)+'» هنوز کامل نشده و در ساخت این Forecast استفاده نمی‌شود)'],
+      ['ماه هدف Forecast',F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m)],
+      ['تعداد ماه‌های کامل قابل استفاده',F.n(nf.completedMonthKeys.length)],
+      ['واحد ساخت سری زمانی','ماهانه (نه روزانه)؛ هر نماینده سری مستقل خودش را، فقط از ماه‌هایی که در آن فعال بوده، دارد.'],
+      ['مدل‌های کاندید','Naive، میانگین کل تاریخچه، میانگین متحرک، میانگین متحرک وزنی، SES، Holt (روند نمایی)، Croston (برای تقاضای متناوب) — هرکدام هم روی داده خام و هم نسخه‌ی Winsorize‌شده'],
+      ['روش Backtesting','Rolling-Origin یک‌گام-به-جلو روی تمام ماه‌های کامل؛ هیچ مدلی هنگام Backtest به داده‌ی بعد از نقطه‌ی شبیه‌سازی‌شده دسترسی ندارد.'],
+      ['معیار انتخاب مدل','کمترین WAPE؛ در تساوی نزدیک (±۱۰٪)، ساده‌ترین مدل انتخاب می‌شود تا از Overfitting روی سری‌های کوتاه جلوگیری شود.'],
+      ['Seasonality','به دلیل کمتر از ۱۲ ماه سابقه در کل Dataset، فصلی/الگوی ماهانه برای هیچ موجودیتی ادعا نشده (هرگز ساختگی تولید نمی‌شود).'],
+      ['Outlier','مقادیر پرت حذف نمی‌شوند؛ نسخه‌ی Winsorize‌شده (کران‌گذاری با IQR) به‌عنوان یک کاندید جداگانه در Backtest رقابت می‌کند و فقط در صورت خطای کمتر انتخاب می‌شود.'],
+      ['هماهنگی سطح شبکه با نمایندگان','هر دو روش (Σ نمایندگان و Forecast مستقیم شبکه) محاسبه و Backtest شده‌اند؛ روش با خطای کمتر به‌عنوان «Forecast عملیاتی» پیشنهاد می‌شود (پیش‌فرض: Σ نمایندگان).'],
+      ['Rounding','تمام محاسبات داخلی با دقت اعشاری کامل انجام می‌شود؛ فقط عدد نهایی نمایش‌داده‌شده گرد می‌شود.'],
+      ['زمان محاسبه',F.dateTime(Date.now())]
+    ];
+    return '<table><tbody>'+rows.map(r=>'<tr><td style="white-space:nowrap;font-weight:600;vertical-align:top">'+esc(r[0])+'</td><td style="white-space:normal">'+r[1]+'</td></tr>').join('')+'</tbody></table>';
+  }
+
+  function nextMonthValidation(nf){
+    const allWape=[]; nf.reps.forEach(r=>nf.products.forEach(p=>{ const e=r[p]; if(e&&e.backtest&&e.backtest.wape!=null) allWape.push(e.backtest.wape); }));
+    allWape.sort((a,b)=>a-b);
+    const median=allWape.length?(allWape.length%2?allWape[allWape.length>>1]:(allWape[allWape.length/2-1]+allWape[allWape.length/2])/2):null;
+    const mean=allWape.length?allWape.reduce((a,b)=>a+b,0)/allWape.length:null;
+    const modelCounts={}; nf.reps.forEach(r=>nf.products.forEach(p=>{ const e=r[p]; if(e&&e.status==='Forecasted') modelCounts[e.model]=(modelCounts[e.model]||0)+1; }));
+    const topModels=Object.entries(modelCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    return '<div class="kpis">'
+      +TVL.kpi.card({label:'نمایندگان با Forecast کامل (هر دو محصول)',raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
+      +TVL.kpi.card({label:'نمایندگان با Forecast جزئی (یک محصول)',raw:F.n(nf.partialCount)})
+      +TVL.kpi.card({label:'نمایندگان Insufficient Data',raw:F.n(nf.insufficientCount)})
+      +TVL.kpi.card({label:'میانه‌ی WAPE در Backtest',raw:median!==null?F.pct(median,0):'<span class="flat">—</span>'})
+      +TVL.kpi.card({label:'میانگین WAPE در Backtest',raw:mean!==null?F.pct(mean,0):'<span class="flat">—</span>'})
+      +'</div>'
+      +'<p class="sub">پرتکرارترین مدل‌های انتخاب‌شده در میان نمایندگان: '+(topModels.length?topModels.map(x=>esc(x[0])+' ('+F.n(x[1])+')').join('، '):'—')+'</p>';
+  }
+
+  function renderNextMonth(app){
+    const nf=FM.compute(app.ds,app.st);
+    if(!nf) return H.empty;
+    return nextMonthNetworkCards(nf)
+      +H.panel('گزارش Validation','وضعیت پوشش و کیفیت Forecast برای همه‌ی نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
+      +H.panel('جدول Forecast ماه آینده — نمایندگان','برای مرتب‌سازی روی سرستون کلیک کنید (مثلاً بر اساس Forecast یا خطا).',nextMonthRepTable(nf))
+      +H.panel('روش محاسبه (ماه آینده)','',nextMonthMethodology(nf));
+  }
+
+  const mode=app.ui.fcMode||'next';
+  const modeToggle='<div class="subnav" role="tablist" style="margin:0 0 10px"><button data-fcmode="next" class="'+(mode==='next'?'on':'')+'">پیش‌بینی ماه آینده</button><button data-fcmode="current" class="'+(mode==='current'?'on':'')+'">پیش‌بینی پایان ماه جاری</button></div>';
+
+  if(mode==='next'){
+    let headN='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش ماه آینده</b> — واحد: '+U+'. به تفکیک تک‌تک نمایندگان و هر محصول (تخم‌مرغ/تلابار)، بر پایه‌ی سری‌های ماهانه و Backtesting، مستقل از پیش‌بینی پایان ماه جاری.</p>'
+      +'<div class="row" style="margin:0 0 12px"><button class="btn" id="fmRefresh">↻ به‌روزرسانی پیش‌بینی ماه آینده</button></div>';
+    return modeToggle+headN+renderNextMonth(app);
+  }
+
   let head='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش پایان ماه</b> — واحد: '+U+'. آخرین بروزرسانی داده: <b>'+F.dateLong(app.ds.meta.dateMax)+'</b>. دوره‌ی Forecast: از ابتدای ماه جاری تا پایان آن.</p>'
     +'<div class="row" style="margin:0 0 12px"><button class="btn" id="fcRefresh">↻ به‌روزرسانی پیش‌بینی</button></div>';
 
-  return head+H.blocks(mt,(pm,p)=>{
+  return modeToggle+head+H.blocks(mt,(pm,p)=>{
     const fc=FC.compute(app.ds,app.st,p);
     if(!fc||!fc.reps) return H.empty;
     const repOptions=fc.reps.filter(r=>!r.insufficient);
@@ -2886,8 +3355,10 @@ TVL.views.forecast={render(app){
       +H.panel('جزئیات مدل و ارزیابی','',diagnostics(fc));
   });
 },bind(app,root){
+  root.querySelectorAll('[data-fcmode]').forEach(b=>b.onclick=()=>{ app.ui.fcMode=b.dataset.fcmode; app.render(); });
   const sel=root.querySelector('#fcRepSel'); if(sel) sel.onchange=()=>{ app.ui.fcRep=sel.value; app.render(); };
   const rf=root.querySelector('#fcRefresh'); if(rf) rf.onclick=()=>{ TVL.forecast.clearCache(); app.render(); TVL.ui.toast('پیش‌بینی به‌روزرسانی شد.'); };
+  const rfN=root.querySelector('#fmRefresh'); if(rfN) rfN.onclick=()=>{ TVL.forecastMonthly.clearCache(); app.render(); TVL.ui.toast('پیش‌بینی ماه آینده به‌روزرسانی شد.'); };
 }};
 
 /* ---------- app.js ---------- */
