@@ -2033,7 +2033,11 @@ TVL.forecastMonthly = (function(){
     const dsMax=ds.meta.dateMax; if(dsMax===null) return null;
     const dm=J.fromJdn(dsMax), currentMonthKey=mk(dm.y,dm.m), targetMonthKey=currentMonthKey+1;
     const completedMonthKeys=ds.meta.months.filter(k=>k<currentMonthKey);
-    const products=C.products.map(p=>p.key);
+    // Honour the dashboard's Product Filter exactly like every other engine (TVL.metrics.compute
+    // uses this same fallback convention: an explicit, non-empty selection narrows the product
+    // set; nothing selected falls back to every product). This is the single source of truth —
+    // "همه محصولات" ⇔ st.products empty or containing every product key.
+    const products=(st.products&&st.products.length)?st.products.filter(p=>C.products.some(x=>x.key===p)):C.products.map(p=>p.key);
     const base={}; products.forEach(p=>{ base[p]=ds.records.filter(r=>r.product===p&&TVL.filters.match(r,st,'products')); });
     const repNames=[...new Set(products.flatMap(p=>base[p].filter(r=>r.representative).map(r=>r.representative)))].sort((a,b)=>a.localeCompare(b,'fa'));
 
@@ -3231,15 +3235,27 @@ TVL.views.forecast={render(app){
   }
   function fmStatusOf(r,p){ const e=r[p]; return e?e.status:'Insufficient Data'; }
   function fmConfOf(r,p){ const e=r[p]; return (e&&e.status==='Forecasted')?e.confidence.level:null; }
+  const confRank={High:3,Medium:2,Low:1};
 
+  /* Everything below is driven ONLY by nf.products — which TVL.forecastMonthly.build() now
+     derives from the SAME Product Filter (app.st.products) every other tab uses (selected_product,
+     in the brief's terms, is simply app.st.products; there is no second, parallel notion of it).
+     One product selected → one product's worth of KPIs/table columns/chart, full stop; nothing
+     from the other product is computed-and-hidden, the OTHER product's branch of the pipeline is
+     never touched for that render. Both selected → the combined, clearly product-labelled view. */
   function nextMonthNetworkCards(nf){
-    return '<div class="grid2">'+nf.products.map(p=>{
+    const cards=nf.products.map(p=>{
       const n=nf.network[p]; const d=n.direct;
       const recVal=n.recommendation==='direct'?d.point:n.sumReps;
       const recLabel=n.recommendation==='direct'?'Forecast مستقیم شبکه':'Σ Forecast نمایندگان';
+      const forecastedReps=nf.reps.filter(r=>r[p]&&r[p].status==='Forecasted');
+      const avgRep=forecastedReps.length?forecastedReps.reduce((s,r)=>s+r[p].point,0)/forecastedReps.length:null;
       return '<div class="panel"><h2>Forecast شبکه — '+esc(p)+'</h2><p class="sub">ماه هدف: '+esc(F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m))+'</p>'
         +'<div class="kpis">'
-          +TVL.kpi.card({label:'Forecast عملیاتی ('+recLabel+')',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:n.recommendReason})
+          +TVL.kpi.card({label:'Forecast کل '+p+' ('+recLabel+')',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:n.recommendReason})
+          +TVL.kpi.card({label:'میانگین Forecast نمایندگان',raw:avgRep!==null?(F.n(Math.round(avgRep))+U_small):'<span class="flat">—</span>'})
+          +TVL.kpi.card({label:'تعداد نمایندگان دارای Forecast',raw:F.n(forecastedReps.length)+' <small>از '+F.n(nf.reps.length)+'</small>'})
+          +TVL.kpi.card({label:'Forecast Confidence (سطح شبکه)',raw:d.status==='Forecasted'?confBadge(d.confidence.level):'<span class="flat">—</span>',extra:d.status==='Forecasted'?d.confidence.reason:''})
           +TVL.kpi.card({label:'Σ Forecast نمایندگان',raw:F.n(Math.round(n.sumReps))+U_small})
           +TVL.kpi.card({label:'Forecast مستقیم شبکه',raw:d.status==='Forecasted'?(F.n(Math.round(d.point))+U_small):'<span class="flat">—</span>',extra:d.status==='Forecasted'?('بازه: '+fmtRange(d.lower,d.upper)):''})
           +TVL.kpi.card({label:'اختلاف (مستقیم − Σنمایندگان)',raw:(n.diff===null?'<span class="flat">—</span>':('<span class="'+F.cls(n.diff)+'">'+F.sgnN(Math.round(n.diff))+'</span>'+U_small))})
@@ -3247,28 +3263,52 @@ TVL.views.forecast={render(app){
           +TVL.kpi.card({label:'خطای Backtest — Σنمایندگان',raw:(n.sumRepsBacktest&&n.sumRepsBacktest.wape!==null)?F.pct(n.sumRepsBacktest.wape,0):'<span class="flat">—</span>',extra:n.sumRepsBacktest?('MAE ≈ '+F.n(Math.round(n.sumRepsBacktest.mae))+' · '+n.sumRepsBacktest.n+' نقطه'):''})
           +TVL.kpi.card({label:'مدل منتخب (سطح شبکه)',raw:d.status==='Forecasted'?esc(d.model):'<span class="flat">—</span>'})
         +'</div></div>';
-    }).join('')+'</div>';
+    });
+    return nf.products.length>1?('<div class="grid2">'+cards.join('')+'</div>'):cards.join('');
+  }
+
+  /* One ranked bar chart per product in scope, titled dynamically — never a chart for a product
+     the current filter excludes. */
+  function nextMonthChart(nf){
+    return nf.products.map(p=>{
+      const rows=nf.reps.filter(r=>r[p]&&r[p].status==='Forecasted').slice().sort((a,b)=>b[p].point-a[p].point).slice(0,14);
+      const title='پیش‌بینی فروش '+p+' نمایندگان برای ماه آینده';
+      const chart=Ch.slot(Ch.bar(rows.map(r=>({l:r.name.split('(')[0],v:r[p].point,tip:'<b>'+esc(r.name)+'</b><br>Forecast '+p+': '+F.n(Math.round(r[p].point))})),{H:260,rot:true,labelW:60,title}));
+      return H.panel(title,'۱۴ نماینده‌ی برتر بر اساس Forecast ماه آینده — واحد: '+U+'.',rows.length?chart:'<div class="empty">نماینده‌ای با Forecast برای این محصول در فیلتر فعلی نیست.</div>');
+    }).join('');
   }
 
   function nextMonthRepTable(nf){
     const rows=nf.reps;
-    const confRank={High:3,Medium:2,Low:1};
+    if(nf.products.length===1){
+      // Single product selected → exactly the columns asked for, nothing from the other product.
+      const p=nf.products[0];
+      const cols=[
+        {key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)},
+        {key:'fc',label:'Forecast '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)},
+        {key:'trend',label:'روند',sortVal:r=>{ const e=r[p]; return (e&&e.trend&&e.trend.rel!==undefined)?e.trend.rel:-99; },cell:r=>{ const e=r[p]; return e&&e.trend?esc(e.trend.label):'<span class="flat">—</span>'; }},
+        {key:'err',label:'خطا (WAPE)',num:true,sortVal:r=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?e.backtest.wape:2; },cell:r=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?F.pct(e.backtest.wape,0):'<span class="flat">—</span>'; }},
+        {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=fmConfOf(r,p); return c?confRank[c]:0; },cell:r=>{ const c=fmConfOf(r,p); return c?confBadge(c):'<span class="flat">—</span>'; }},
+        {key:'model',label:'مدل انتخاب‌شده',cell:r=>{ const e=r[p]; return (e&&e.status==='Forecasted')?esc(e.model):'<span class="flat">—</span>'; }},
+        {key:'status',label:'وضعیت داده',cell:r=>{ const s=fmStatusOf(r,p); return s==='Forecasted'?'<span class="tag t-pos">آماده</span>':'<span class="tag t-low">'+(r[p]?'بدون سابقه':'—')+'</span>'; }}
+      ];
+      return UI.table('fmRepTbl_'+p,{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-'+p,sort:['fc',-1]});
+    }
+    // All products selected → one Forecast column per product, clearly product-labelled.
     const overallConf=r=>{ const cs=nf.products.map(p=>fmConfOf(r,p)).filter(Boolean); if(!cs.length) return null;
       return cs.reduce((worst,c)=>(confRank[c]<confRank[worst]?c:worst),cs[0]); };
-    const cols=[
-      {key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)},
-      {key:'egg',label:'Forecast تخم‌مرغ',num:true,sortVal:r=>r['تخم‌مرغ']&&r['تخم‌مرغ'].status==='Forecasted'?r['تخم‌مرغ'].point:-1,cell:r=>fmProductCell(r,'تخم‌مرغ')},
-      {key:'tel',label:'Forecast تلابار',num:true,sortVal:r=>r['تلابار']&&r['تلابار'].status==='Forecasted'?r['تلابار'].point:-1,cell:r=>fmProductCell(r,'تلابار')},
+    const cols=[{key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)}];
+    nf.products.forEach(p=>cols.push({key:'fc_'+p,label:'Forecast '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)}));
+    cols.push(
       {key:'trend',label:'روند',cell:r=>nf.products.map(p=>{ const e=r[p]; return e&&e.trend?('<div class="s">'+p+': '+esc(e.trend.label)+'</div>'):''; }).join('')},
       {key:'err',label:'خطای Backtest (WAPE)',num:true,
         sortVal:r=>{ const vals=nf.products.map(p=>r[p]&&r[p].backtest&&r[p].backtest.wape!=null?r[p].backtest.wape:null).filter(v=>v!==null); return vals.length?Math.min(...vals):2; },
         cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?('<div class="s">'+p+': '+F.pct(e.backtest.wape,0)+'</div>'):''; }).join('')||'<span class="flat">—</span>'},
       {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=overallConf(r); return c?confRank[c]:0; },cell:r=>{ const c=overallConf(r); return c?confBadge(c):'<span class="flat">—</span>'; }},
-      {key:'rng',label:'بازه Forecast',cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.status==='Forecasted')?('<div class="s">'+p+': '+fmtRange(e.lower,e.upper)+'</div>'):''; }).join('')},
       {key:'model',label:'مدل انتخاب‌شده',cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.status==='Forecasted')?('<div class="s">'+p+': '+esc(e.model)+'</div>'):''; }).join('')},
-      {key:'status',label:'وضعیت داده',cell:r=>nf.products.map(p=>{ const st=fmStatusOf(r,p); return st==='Forecasted'?('<span class="tag t-pos">'+p+': آماده</span>'):('<span class="tag t-low">'+p+': '+(r[p]?'بدون سابقه':'—')+'</span>'); }).join(' ')}
-    ];
-    return UI.table('fmRepTbl',{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-reps',sort:['egg',-1]});
+      {key:'status',label:'وضعیت داده',cell:r=>nf.products.map(p=>{ const s=fmStatusOf(r,p); return s==='Forecasted'?('<span class="tag t-pos">'+p+': آماده</span>'):('<span class="tag t-low">'+p+': '+(r[p]?'بدون سابقه':'—')+'</span>'); }).join(' ')}
+    );
+    return UI.table('fmRepTbl_all',{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-reps',sort:['fc_'+nf.products[0],-1]});
   }
 
   function nextMonthMethodology(nf){
@@ -3296,38 +3336,57 @@ TVL.views.forecast={render(app){
     const mean=allWape.length?allWape.reduce((a,b)=>a+b,0)/allWape.length:null;
     const modelCounts={}; nf.reps.forEach(r=>nf.products.forEach(p=>{ const e=r[p]; if(e&&e.status==='Forecasted') modelCounts[e.model]=(modelCounts[e.model]||0)+1; }));
     const topModels=Object.entries(modelCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    return '<div class="kpis">'
-      +TVL.kpi.card({label:'نمایندگان با Forecast کامل (هر دو محصول)',raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
-      +TVL.kpi.card({label:'نمایندگان با Forecast جزئی (یک محصول)',raw:F.n(nf.partialCount)})
-      +TVL.kpi.card({label:'نمایندگان Insufficient Data',raw:F.n(nf.insufficientCount)})
+    const coverageCards=nf.products.length>1
+      ? TVL.kpi.card({label:'نمایندگان با Forecast کامل (هر '+F.n(nf.products.length)+' محصول)',raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
+        +TVL.kpi.card({label:'نمایندگان با Forecast جزئی (فقط یک محصول)',raw:F.n(nf.partialCount)})
+        +TVL.kpi.card({label:'نمایندگان Insufficient Data',raw:F.n(nf.insufficientCount)})
+      : TVL.kpi.card({label:'نمایندگان با Forecast — '+nf.products[0],raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
+        +TVL.kpi.card({label:'نمایندگان Insufficient Data — '+nf.products[0],raw:F.n(nf.insufficientCount)});
+    return '<div class="kpis">'+coverageCards
       +TVL.kpi.card({label:'میانه‌ی WAPE در Backtest',raw:median!==null?F.pct(median,0):'<span class="flat">—</span>'})
       +TVL.kpi.card({label:'میانگین WAPE در Backtest',raw:mean!==null?F.pct(mean,0):'<span class="flat">—</span>'})
       +'</div>'
-      +'<p class="sub">پرتکرارترین مدل‌های انتخاب‌شده در میان نمایندگان: '+(topModels.length?topModels.map(x=>esc(x[0])+' ('+F.n(x[1])+')').join('، '):'—')+'</p>';
+      +'<p class="sub">پرتکرارترین مدل‌های انتخاب‌شده در میان نمایندگان ('+esc(nf.products.join('، '))+'): '+(topModels.length?topModels.map(x=>esc(x[0])+' ('+F.n(x[1])+')').join('، '):'—')+'</p>';
   }
 
-  function renderNextMonth(app){
-    const nf=FM.compute(app.ds,app.st);
-    if(!nf) return H.empty;
+  function renderNextMonth(app,nf){
+    const title=nf.products.length>1?'همه‌ی محصولات':nf.products[0];
     return nextMonthNetworkCards(nf)
-      +H.panel('گزارش Validation','وضعیت پوشش و کیفیت Forecast برای همه‌ی نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
-      +H.panel('جدول Forecast ماه آینده — نمایندگان','برای مرتب‌سازی روی سرستون کلیک کنید (مثلاً بر اساس Forecast یا خطا).',nextMonthRepTable(nf))
+      +H.panel('گزارش Validation — '+esc(title),'وضعیت پوشش و کیفیت Forecast برای نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
+      +nextMonthChart(nf)
+      +H.panel('جدول Forecast ماه آینده — نمایندگان ('+esc(title)+')','برای مرتب‌سازی روی سرستون کلیک کنید (مثلاً بر اساس Forecast یا خطا).',nextMonthRepTable(nf))
       +H.panel('روش محاسبه (ماه آینده)','',nextMonthMethodology(nf));
   }
+
+  /* ---- Shared Product Filter control (both Forecast modes) ----
+     This is NOT a second, parallel filter: it reads and writes the exact same app.st.products
+     the rest of the dashboard already uses (selected_product). Clicking it recomputes everything
+     — KPIs, tables and charts in both «ماه آینده» and «ماه جاری» — through the normal app.render()
+     path; nothing here is hidden/shown with CSS, each branch only ever computes the product(s)
+     actually selected. */
+  const allProducts=app.ds.meta.products;
+  const selProducts=(app.st.products&&app.st.products.length)?app.st.products:allProducts;
+  const isAllSelected=allProducts.length>1&&allProducts.every(p=>selProducts.includes(p));
+  const productFilterCtl='<div class="filters-row" style="margin:0 0 10px"><span style="font-size:12px;color:var(--muted);white-space:nowrap">فیلتر محصول Forecast:</span><div class="subnav" role="tablist" style="margin:0">'
+    +'<button data-fmprod="__all__" class="'+(isAllSelected?'on':'')+'">همه محصولات</button>'
+    +allProducts.map(p=>'<button data-fmprod="'+esc(p)+'" class="'+((!isAllSelected&&selProducts.length===1&&selProducts[0]===p)?'on':'')+'">'+esc(p)+'</button>').join('')
+    +'</div></div>';
 
   const mode=app.ui.fcMode||'next';
   const modeToggle='<div class="subnav" role="tablist" style="margin:0 0 10px"><button data-fcmode="next" class="'+(mode==='next'?'on':'')+'">پیش‌بینی ماه آینده</button><button data-fcmode="current" class="'+(mode==='current'?'on':'')+'">پیش‌بینی پایان ماه جاری</button></div>';
 
   if(mode==='next'){
-    let headN='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش ماه آینده</b> — واحد: '+U+'. به تفکیک تک‌تک نمایندگان و هر محصول (تخم‌مرغ/تلابار)، بر پایه‌ی سری‌های ماهانه و Backtesting، مستقل از پیش‌بینی پایان ماه جاری.</p>'
+    const nf=FM.compute(app.ds,app.st);
+    const title=nf&&nf.products.length===1?nf.products[0]:'همه‌ی محصولات';
+    let headN='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش ماه آینده — '+esc(title)+'</b> — واحد: '+U+'. به تفکیک تک‌تک نمایندگان، بر پایه‌ی سری‌های ماهانه و Backtesting، مستقل از پیش‌بینی پایان ماه جاری.</p>'
       +'<div class="row" style="margin:0 0 12px"><button class="btn" id="fmRefresh">↻ به‌روزرسانی پیش‌بینی ماه آینده</button></div>';
-    return modeToggle+headN+renderNextMonth(app);
+    return productFilterCtl+modeToggle+headN+(nf?renderNextMonth(app,nf):H.empty);
   }
 
   let head='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش پایان ماه</b> — واحد: '+U+'. آخرین بروزرسانی داده: <b>'+F.dateLong(app.ds.meta.dateMax)+'</b>. دوره‌ی Forecast: از ابتدای ماه جاری تا پایان آن.</p>'
     +'<div class="row" style="margin:0 0 12px"><button class="btn" id="fcRefresh">↻ به‌روزرسانی پیش‌بینی</button></div>';
 
-  return modeToggle+head+H.blocks(mt,(pm,p)=>{
+  return productFilterCtl+modeToggle+head+H.blocks(mt,(pm,p)=>{
     const fc=FC.compute(app.ds,app.st,p);
     if(!fc||!fc.reps) return H.empty;
     const repOptions=fc.reps.filter(r=>!r.insufficient);
@@ -3356,6 +3415,8 @@ TVL.views.forecast={render(app){
   });
 },bind(app,root){
   root.querySelectorAll('[data-fcmode]').forEach(b=>b.onclick=()=>{ app.ui.fcMode=b.dataset.fcmode; app.render(); });
+  root.querySelectorAll('[data-fmprod]').forEach(b=>b.onclick=()=>{ const v=b.dataset.fmprod;
+    app.setFilters(s=>{ s.products=(v==='__all__')?app.ds.meta.products.slice():[v]; }); });
   const sel=root.querySelector('#fcRepSel'); if(sel) sel.onchange=()=>{ app.ui.fcRep=sel.value; app.render(); };
   const rf=root.querySelector('#fcRefresh'); if(rf) rf.onclick=()=>{ TVL.forecast.clearCache(); app.render(); TVL.ui.toast('پیش‌بینی به‌روزرسانی شد.'); };
   const rfN=root.querySelector('#fmRefresh'); if(rfN) rfN.onclick=()=>{ TVL.forecastMonthly.clearCache(); app.render(); TVL.ui.toast('پیش‌بینی ماه آینده به‌روزرسانی شد.'); };
