@@ -11,19 +11,19 @@
 :root{
   --font:Vazirmatn,Tahoma,'Segoe UI',system-ui,sans-serif;
   --bg:#f6f5f2;--surface:#ffffff;--surface2:#faf9f6;--ink:#1e2a2d;--muted:#65727a;--line:#e3e1da;--line2:#efede7;
-  --egg:#c98a06;--egg-soft:#fbf0d6;--teal:#1f7370;--teal-soft:#dcefed;--orange:#d9691a;
+  --egg:#c98a06;--egg-soft:#fbf0d6;--teal:#1e6b45;--teal-soft:#e3f2e8;--orange:#d9691a;
   --pos:#1f7a4c;--pos-soft:#e0f2e8;--neg:#c0392e;--neg-soft:#fbe5e2;--warn:#9a6205;--warn-soft:#fcefd3;--neu:#66737b;--neu-soft:#eceff0;--info:#2c6d9c;--info-soft:#e0eef8;
   --accent:var(--egg);--accent-soft:var(--egg-soft);--c1:var(--egg);--c2:var(--teal);--c3:#8a979f;--c4:var(--neg);
   --radius:10px;--shadow:0 1px 2px rgba(20,30,32,.06);--focus:#2c6d9c;
 }
 html[data-theme="dark"]{
   --bg:#12181b;--surface:#1a2226;--surface2:#20292e;--ink:#e8eeef;--muted:#9aa8ad;--line:#2f3a3f;--line2:#273237;
-  --egg:#f0b23a;--egg-soft:#3b2f13;--teal:#4dc4bf;--teal-soft:#15393a;--orange:#f0883e;
+  --egg:#f0b23a;--egg-soft:#3b2f13;--teal:#4ecb86;--teal-soft:#123a28;--orange:#f0883e;
   --pos:#62d698;--pos-soft:#153a28;--neg:#ff7f74;--neg-soft:#432120;--warn:#f0b23a;--warn-soft:#3b2f13;--neu:#9aa8ad;--neu-soft:#263136;--info:#6fb4e6;--info-soft:#17303f;--c3:#8fa0a8;--focus:#6fb4e6;--shadow:none;
 }
 @media (prefers-color-scheme:dark){ html:not([data-theme]){
   --bg:#12181b;--surface:#1a2226;--surface2:#20292e;--ink:#e8eeef;--muted:#9aa8ad;--line:#2f3a3f;--line2:#273237;
-  --egg:#f0b23a;--egg-soft:#3b2f13;--teal:#4dc4bf;--teal-soft:#15393a;--orange:#f0883e;
+  --egg:#f0b23a;--egg-soft:#3b2f13;--teal:#4ecb86;--teal-soft:#123a28;--orange:#f0883e;
   --pos:#62d698;--pos-soft:#153a28;--neg:#ff7f74;--neg-soft:#432120;--warn:#f0b23a;--warn-soft:#3b2f13;--neu:#9aa8ad;--neu-soft:#263136;--info:#6fb4e6;--info-soft:#17303f;--c3:#8fa0a8;--focus:#6fb4e6;--shadow:none; } }
 
 /* ===== styles/dashboard.css — layout & components (RTL, responsive, accessible, print-friendly) ===== */
@@ -82,6 +82,11 @@ main{padding:20px 22px 60px;max-width:1500px;margin:0 auto}
 /* KPI */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;border-top:3px solid var(--accent)}
+/* Dynamic Product Theme (Phase F3) — short, gentle transition so switching the Product Filter
+   never snaps jarringly; every element here already reads var(--accent)/var(--accent-soft),
+   which .prod-block[data-accent=egg|teal] (core, unchanged) re-points per product, so this is
+   purely a transition-timing addition, not a new color source. */
+.kpi,.panel,.btn,.tag,svg .bar,svg .ln,svg .pt,.hbar i,.subnav button{transition:background-color .2s ease,border-color .2s ease,color .2s ease,fill .2s ease,stroke .2s ease}
 .kpi .l{color:var(--muted);font-size:12.5px} .kpi .v{font-size:23px;font-weight:700;line-height:1.35;word-break:break-word} .kpi .v small{font-size:12px;color:var(--muted);font-weight:500}
 .kpi .d{font-size:12.5px;margin-top:3px} .kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
 .up{color:var(--pos)} .down{color:var(--neg)} .flat{color:var(--neu)}
@@ -3228,10 +3233,15 @@ TVL.views.forecast={render(app){
      ===================================================================================== */
   const FM=TVL.forecastMonthly;
   const fmtRange=(lo,hi)=>F.n(Math.round(lo))+' – '+F.n(Math.round(hi));
+  /* selected_product_theme resolver — reused as-is from the dashboard's existing per-product
+     accent system (TVL.vh.accent / H.accent, already driving every other tab's charts/KPIs via
+     .prod-block[data-accent=egg|teal] → var(--accent)). Forecast just needs to actually USE it,
+     which is what the wrapping below adds; no second/parallel color system is introduced. */
+  const themeOf=p=>H.accent(p); // 'egg' | 'teal' — also the exact CSS custom-property name (var(--egg) / var(--teal))
   function fmProductCell(r,p){
     const e=r[p]; if(!e) return '<span class="flat">—</span>';
     if(e.status!=='Forecasted') return '<span class="tag t-low">بدون سابقه</span>';
-    return '<b>'+F.n(Math.round(e.point))+'</b><div class="s">'+fmtRange(e.lower,e.upper)+'</div>';
+    return '<b style="color:var(--'+themeOf(p)+')">'+F.n(Math.round(e.point))+'</b><div class="s">'+fmtRange(e.lower,e.upper)+'</div>';
   }
   function fmStatusOf(r,p){ const e=r[p]; return e?e.status:'Insufficient Data'; }
   function fmConfOf(r,p){ const e=r[p]; return (e&&e.status==='Forecasted')?e.confidence.level:null; }
@@ -3250,7 +3260,7 @@ TVL.views.forecast={render(app){
       const recLabel=n.recommendation==='direct'?'Forecast مستقیم شبکه':'Σ Forecast نمایندگان';
       const forecastedReps=nf.reps.filter(r=>r[p]&&r[p].status==='Forecasted');
       const avgRep=forecastedReps.length?forecastedReps.reduce((s,r)=>s+r[p].point,0)/forecastedReps.length:null;
-      return '<div class="panel"><h2>Forecast شبکه — '+esc(p)+'</h2><p class="sub">ماه هدف: '+esc(F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m))+'</p>'
+      return '<div class="prod-block" data-accent="'+themeOf(p)+'" style="margin:0"><div class="panel"><h2>Forecast شبکه — '+esc(p)+'</h2><p class="sub">ماه هدف: '+esc(F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m))+'</p>'
         +'<div class="kpis">'
           +TVL.kpi.card({label:'Forecast کل '+p+' ('+recLabel+')',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:n.recommendReason})
           +TVL.kpi.card({label:'میانگین Forecast نمایندگان',raw:avgRep!==null?(F.n(Math.round(avgRep))+U_small):'<span class="flat">—</span>'})
@@ -3262,19 +3272,20 @@ TVL.views.forecast={render(app){
           +TVL.kpi.card({label:'خطای Backtest — مستقیم',raw:(n.directBacktest&&n.directBacktest.wape!==null)?F.pct(n.directBacktest.wape,0):'<span class="flat">—</span>',extra:n.directBacktest?('MAE ≈ '+F.n(Math.round(n.directBacktest.mae))+' · '+n.directBacktest.n+' نقطه'):''})
           +TVL.kpi.card({label:'خطای Backtest — Σنمایندگان',raw:(n.sumRepsBacktest&&n.sumRepsBacktest.wape!==null)?F.pct(n.sumRepsBacktest.wape,0):'<span class="flat">—</span>',extra:n.sumRepsBacktest?('MAE ≈ '+F.n(Math.round(n.sumRepsBacktest.mae))+' · '+n.sumRepsBacktest.n+' نقطه'):''})
           +TVL.kpi.card({label:'مدل منتخب (سطح شبکه)',raw:d.status==='Forecasted'?esc(d.model):'<span class="flat">—</span>'})
-        +'</div></div>';
+        +'</div></div></div>';
     });
     return nf.products.length>1?('<div class="grid2">'+cards.join('')+'</div>'):cards.join('');
   }
 
   /* One ranked bar chart per product in scope, titled dynamically — never a chart for a product
-     the current filter excludes. */
+     the current filter excludes. Wrapped per-product so the bars pick up var(--accent) from the
+     SAME central .prod-block[data-accent] mechanism as every other chart in the dashboard. */
   function nextMonthChart(nf){
     return nf.products.map(p=>{
       const rows=nf.reps.filter(r=>r[p]&&r[p].status==='Forecasted').slice().sort((a,b)=>b[p].point-a[p].point).slice(0,14);
       const title='پیش‌بینی فروش '+p+' نمایندگان برای ماه آینده';
       const chart=Ch.slot(Ch.bar(rows.map(r=>({l:r.name.split('(')[0],v:r[p].point,tip:'<b>'+esc(r.name)+'</b><br>Forecast '+p+': '+F.n(Math.round(r[p].point))})),{H:260,rot:true,labelW:60,title}));
-      return H.panel(title,'۱۴ نماینده‌ی برتر بر اساس Forecast ماه آینده — واحد: '+U+'.',rows.length?chart:'<div class="empty">نماینده‌ای با Forecast برای این محصول در فیلتر فعلی نیست.</div>');
+      return '<div class="prod-block" data-accent="'+themeOf(p)+'" style="margin:0">'+H.panel(title,'۱۴ نماینده‌ی برتر بر اساس Forecast ماه آینده — واحد: '+U+'.',rows.length?chart:'<div class="empty">نماینده‌ای با Forecast برای این محصول در فیلتر فعلی نیست.</div>')+'</div>';
     }).join('');
   }
 
@@ -3351,11 +3362,16 @@ TVL.views.forecast={render(app){
 
   function renderNextMonth(app,nf){
     const title=nf.products.length>1?'همه‌ی محصولات':nf.products[0];
-    return nextMonthNetworkCards(nf)
-      +H.panel('گزارش Validation — '+esc(title),'وضعیت پوشش و کیفیت Forecast برای نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
+    const rest=H.panel('گزارش Validation — '+esc(title),'وضعیت پوشش و کیفیت Forecast برای نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
       +nextMonthChart(nf)
       +H.panel('جدول Forecast ماه آینده — نمایندگان ('+esc(title)+')','برای مرتب‌سازی روی سرستون کلیک کنید (مثلاً بر اساس Forecast یا خطا).',nextMonthRepTable(nf))
       +H.panel('روش محاسبه (ماه آینده)','',nextMonthMethodology(nf));
+    // Exactly one product selected → the Validation/table/methodology panels (not already
+    // per-product-wrapped like the network cards/chart above) get the SAME single accent too,
+    // so the whole tab — table sort highlights, badges, everything reading var(--accent) —
+    // is consistently themed. With both products selected these stay neutral on purpose: they
+    // combine both products' numbers, so no single product color would be accurate.
+    return nextMonthNetworkCards(nf)+(nf.products.length===1?('<div class="prod-block" data-accent="'+themeOf(nf.products[0])+'" style="margin:0">'+rest+'</div>'):rest);
   }
 
   /* ---- Shared Product Filter control (both Forecast modes) ----
@@ -3369,7 +3385,11 @@ TVL.views.forecast={render(app){
   const isAllSelected=allProducts.length>1&&allProducts.every(p=>selProducts.includes(p));
   const productFilterCtl='<div class="filters-row" style="margin:0 0 10px"><span style="font-size:12px;color:var(--muted);white-space:nowrap">فیلتر محصول Forecast:</span><div class="subnav" role="tablist" style="margin:0">'
     +'<button data-fmprod="__all__" class="'+(isAllSelected?'on':'')+'">همه محصولات</button>'
-    +allProducts.map(p=>'<button data-fmprod="'+esc(p)+'" class="'+((!isAllSelected&&selProducts.length===1&&selProducts[0]===p)?'on':'')+'">'+esc(p)+'</button>').join('')
+    +allProducts.map(p=>{ const on=!isAllSelected&&selProducts.length===1&&selProducts[0]===p;
+      // Active single-product button lights up in that product's own theme colour (from the
+      // same central var(--egg)/var(--teal) the rest of the page now uses) instead of the
+      // generic dark highlight — an immediate visual confirmation the theme actually switched.
+      return '<button data-fmprod="'+esc(p)+'" class="'+(on?'on':'')+'"'+(on?' style="background:var(--'+H.accent(p)+');border-color:var(--'+H.accent(p)+');color:#fff"':'')+'>'+esc(p)+'</button>'; }).join('')
     +'</div></div>';
 
   const mode=app.ui.fcMode||'next';
