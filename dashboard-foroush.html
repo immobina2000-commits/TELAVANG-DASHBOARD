@@ -2461,9 +2461,13 @@ TVL.ui = (function(){
   const STK_W={1:52,2:190,3:100,4:120};   // px widths for sticky slots 1..4 (رتبه/نماینده/استان/وضعیت) — fixed so header & body align exactly
   function stkStyle(n){ let right=0; for(let i=1;i<n;i++) right+=STK_W[i]||0; const w=STK_W[n]||120; return 'position:sticky;right:'+right+'px;width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;'; }
   function tblInner(id){
-    const T=reg[id], s=T.state; const cols=T.cols; let rows=T.rows;
+    const T=reg[id], s=T.state; const allCols=T.cols; let rows=T.rows;
+    /* A column marked hidden:true stays in T.cols (so CSV export, which reads T.cols directly,
+       keeps exporting it) but is left out of the rendered header/body — for data that's useful to
+       analysts in a full export without needing to occupy screen width every manager scrolls past. */
+    const cols=allCols.filter(c=>!c.hidden);
     const q=s.q.trim(); if(q&&T.search) rows=rows.filter(r=>T.search(r,q));
-    const sk=s.sort[0]; const col=cols.find(c=>c.key===sk);
+    const sk=s.sort[0]; const col=allCols.find(c=>c.key===sk);
     if(col&&col.sortVal){ const d=s.sort[1]; rows=rows.slice().sort((a,b)=>{ const x=col.sortVal(a),y=col.sortVal(b); if(x===null||x===undefined) return 1; if(y===null||y===undefined) return -1; return typeof x==='string'?d*x.localeCompare(y,'fa'):d*(x-y); }); }
     const total=rows.length, pages=Math.max(1,Math.ceil(total/T.pageSize)); s.page=Math.min(s.page,pages-1); const pg=T.pageSize>0?rows.slice(s.page*T.pageSize,(s.page+1)*T.pageSize):rows;
     T.view=rows; const lastStk=Math.max(0,...cols.filter(c=>c.sticky).map(c=>c.sticky));
@@ -2940,24 +2944,28 @@ TVL.views.trend={render(app){
 TVL.views.reps={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,C=TVL.config,esc=F.esc,J=TVL.jalali,M=TVL.metrics;
   return H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
-    if(!H.hasData(pm)) return H.empty; const rows=pm.dims.rep, hasCust=!!pm.dims.customer;
+    if(!H.hasData(pm)) return H.empty; const rows=pm.dims.rep;
     const cols=[
       {key:'rank',label:'رتبه',num:true,sticky:1,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},
       {key:'rep',label:'نماینده',sticky:2,sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
       {key:'prov',label:'استان',sticky:3,sortVal:r=>r.province||'',cell:r=>esc(r.province||'نامشخص'),csv:r=>r.province},
       {key:'st',label:'وضعیت',sticky:4,sortVal:r=>r.status.label,cell:r=>'<span title="'+esc(r.status.why)+'">'+UI.statusBadge(r.status)+'</span>',csv:r=>r.status.label},
-      {key:'city',label:'شهر',sortVal:r=>r.city||'',cell:r=>esc(r.city||'نامشخص')+(r.cityUncertain?' <span class="tag t-low" title="فایل فقط نام استان را نوشته است">فقط استان</span>':''),csv:r=>r.city},
+      {key:'city',label:'شهر',wrap:true,minw:130,sortVal:r=>r.city||'',cell:r=>esc(r.city||'نامشخص')+(r.cityUncertain?' <span class="tag t-low" title="فایل فقط نام استان را نوشته است">فقط استان</span>':''),csv:r=>r.city},
       {key:'cur',label:'فروش',num:true,sortVal:r=>r.cur,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},
       {key:'gr',label:'رشد',num:true,sortVal:r=>r.growth,cell:r=>H.gro(r.growth,r.prev),csv:r=>r.growth},
       {key:'sh',label:'سهم',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share},
-      {key:'ad',label:'روز فعال',num:true,sortVal:r=>r.activeDays,cell:r=>F.n(r.activeDays),csv:r=>r.activeDays},
-      {key:'avg',label:'میانگین هر روز فعال',num:true,sortVal:r=>r.avgDaily,cell:r=>F.n(r.avgDaily),csv:r=>r.avgDaily},
-      {key:'ev',label:'فاکتور',num:true,sortVal:r=>r.events,cell:r=>F.n(r.events),csv:r=>r.events},
-      {key:'ae',label:'میانگین هر فروش',num:true,sortVal:r=>r.avgEvent,cell:r=>F.n(r.avgEvent),csv:r=>r.avgEvent},
-      {key:'last',label:'آخرین فروش',num:true,sortVal:r=>r.lastJdn,cell:r=>F.date(r.lastJdn),csv:r=>F.date(r.lastJdn)},
-      {key:'prev',label:'دوره‌ی قبل',num:true,sortVal:r=>r.prev,cell:r=>H.dash(r.prev,'داده کافی نیست'),csv:r=>r.prev},
-      {key:'chg',label:'تغییر',num:true,sortVal:r=>r.change,cell:r=>H.chg(r.change,r.prev),csv:r=>r.change}];
-    if(hasCust) cols.push({key:'cc',label:'مشتری',num:true,cell:r=>'—'});
+      /* These columns stay in the export (CSV still gets every field) but are hidden from the
+         on-screen table — with 15 columns scrolling past 4 sticky ones, the table was both prone
+         to text spilling across the next column (the city "فقط استان" tag was a clear case of
+         that) and too wide to review at a glance. The row-click "تحلیل کامل" panel below already
+         repeats every one of these, so nothing is actually lost — just moved off the default view. */
+      {key:'ad',label:'روز فعال',num:true,hidden:true,sortVal:r=>r.activeDays,cell:r=>F.n(r.activeDays),csv:r=>r.activeDays},
+      {key:'avg',label:'میانگین هر روز فعال',num:true,hidden:true,sortVal:r=>r.avgDaily,cell:r=>F.n(r.avgDaily),csv:r=>r.avgDaily},
+      {key:'ev',label:'فاکتور',num:true,hidden:true,sortVal:r=>r.events,cell:r=>F.n(r.events),csv:r=>r.events},
+      {key:'ae',label:'میانگین هر فروش',num:true,hidden:true,sortVal:r=>r.avgEvent,cell:r=>F.n(r.avgEvent),csv:r=>r.avgEvent},
+      {key:'last',label:'آخرین فروش',num:true,hidden:true,sortVal:r=>r.lastJdn,cell:r=>F.date(r.lastJdn),csv:r=>F.date(r.lastJdn)},
+      {key:'prev',label:'دوره‌ی قبل',num:true,hidden:true,sortVal:r=>r.prev,cell:r=>H.dash(r.prev,'داده کافی نیست'),csv:r=>r.prev},
+      {key:'chg',label:'تغییر',num:true,hidden:true,sortVal:r=>r.change,cell:r=>H.chg(r.change,r.prev),csv:r=>r.change}];
     // scatter
     const pts=rows.filter(r=>r.cur>0&&r.growth!==null&&r.avgDaily!==null).map(r=>({x:r.avgDaily,y:r.growth,r:4+Math.min(9,(r.share||0)*60),label:r.label,tip:'<b>'+esc(r.label)+'</b><br>فروش: '+F.n(r.cur)+'<br>رشد: '+F.sgn(r.growth)+'<br>میانگین هر روز فعال: '+F.n(r.avgDaily)+'<br>وضعیت: '+esc(r.status.label)}));
     const xs=pts.map(q=>q.x).sort((a,b)=>a-b); const med=xs.length?(xs.length%2?xs[xs.length>>1]:(xs[xs.length/2-1]+xs[xs.length/2])/2):0;
@@ -2972,19 +2980,22 @@ TVL.views.reps={render(app){
       heat='<div class="subnav" role="tablist">'+months.map(k=>{ const q=J.fromMonthKey(k); return '<button data-heatm="'+k+'" class="'+(k===hk?'on':'')+'">'+esc(F.monthLabel(q.y,q.m))+'</button>'; }).join('')+'</div>'+Ch.heat(hr,days,mx); }
     return H.panel('جدول عملکرد نمایندگان ('+esc(mt.period.label)+')','برای مرتب‌سازی روی سرستون کلیک کنید. ستون‌های رتبه، نماینده، استان و وضعیت هنگام اسکرول افقی ثابت می‌مانند. برای تحلیل کامل و خودکار هر نماینده، روی ردیف کلیک کنید. وضعیت طبق قواعد شفاف تعیین می‌شود: رشد ≥ '+F.pct(C.status.growthThreshold,0)+' · افت ≤ '+F.pct(-C.status.declineThreshold,0)+' · توقف فروش · شروع فروش · باثبات · داده کافی نیست.',
         UI.table('repTbl_'+p,{cols:cols,rows:rows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')+(r.city||'')).includes(q),exportName:'representatives-'+p,sort:['cur',-1],sticky:true,rowKey:r=>r.label,
-          footer:rs=>UI.stkCell(1,'')+UI.stkCell(2,'جمع')+UI.stkCell(3,'')+UI.stkCell(4,'')+'<td></td><td class="num">'+F.n(rs.reduce((s,r)=>s+r.cur,0))+'</td><td colspan="'+(cols.length-6)+'"></td>',
+          footer:rs=>UI.stkCell(1,'')+UI.stkCell(2,'جمع')+UI.stkCell(3,'')+UI.stkCell(4,'')+'<td></td><td class="num">'+F.n(rs.reduce((s,r)=>s+r.cur,0))+'</td><td colspan="'+(cols.filter(c=>!c.hidden).length-6)+'"></td>',
           expand:r=>{ const a=M.analysisText(r);
             return '<div class="rowdetail"><div class="rd-grid">'
               +'<div><span class="rd-l">نماینده</span><span class="rd-v">'+esc(r.label)+'</span></div>'
               +'<div><span class="rd-l">استان</span><span class="rd-v">'+esc(r.province||'نامشخص')+'</span></div>'
               +'<div><span class="rd-l">شهر</span><span class="rd-v">'+esc(r.city||'نامشخص')+(r.cityUncertain?' (فقط استان مشخص است)':'')+'</span></div>'
               +'<div><span class="rd-l">فروش جاری</span><span class="rd-v">'+F.n(r.cur)+' '+C.measure.unit+'</span></div>'
+              +'<div><span class="rd-l">سهم از کل فروش</span><span class="rd-v">'+F.pct(r.share)+'</span></div>'
               +'<div><span class="rd-l">فروش دوره‌ی قبل</span><span class="rd-v">'+H.dash(r.prev,'داده کافی نیست')+'</span></div>'
               +'<div><span class="rd-l">تغییر مقدار</span><span class="rd-v">'+H.chg(r.change,r.prev)+'</span></div>'
               +'<div><span class="rd-l">رشد</span><span class="rd-v">'+H.gro(r.growth,r.prev)+'</span></div>'
               +'<div><span class="rd-l">وضعیت</span><span class="rd-v">'+UI.statusBadge(r.status)+'</span></div>'
               +'<div><span class="rd-l">روز فعال (جاری/قبل)</span><span class="rd-v">'+F.n(r.activeDays)+' / '+(r.activeDaysPrev===null?'داده کافی نیست':F.n(r.activeDaysPrev))+'</span></div>'
               +'<div><span class="rd-l">میانگین فروش روز فعال</span><span class="rd-v">'+F.n(r.avgDaily)+' '+C.measure.unit+'</span></div>'
+              +'<div><span class="rd-l">تعداد فاکتور</span><span class="rd-v">'+F.n(r.events)+'</span></div>'
+              +'<div><span class="rd-l">میانگین هر فاکتور</span><span class="rd-v">'+F.n(r.avgEvent)+' '+C.measure.unit+'</span></div>'
               +'<div><span class="rd-l">آخرین فروش</span><span class="rd-v">'+F.date(r.lastJdn)+'</span></div>'
               +'<div><span class="rd-l">مهم‌ترین عامل تغییر</span><span class="rd-v">'+(r.change===null?'داده کافی نیست':(r.change===0?'بدون تغییر':(r.change>0?'افزایش '+F.n(r.change)+' '+C.measure.unit+' نسبت به دوره‌ی قبل':'کاهش '+F.n(Math.abs(r.change))+' '+C.measure.unit+' نسبت به دوره‌ی قبل')))+'</span></div>'
               +'</div><div class="rd-analysis"><b>تحلیل خودکار:</b> '+esc(a)+'</div></div>'; }}))
