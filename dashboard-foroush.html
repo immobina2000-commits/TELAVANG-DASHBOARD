@@ -3055,10 +3055,9 @@ TVL.views.wd={render(app){
       {key:'rec',label:'تحلیل و پیشنهاد',wrap:true,minw:340,cell:r=>esc(r.rec),csv:r=>r.rec}];
     // rep detail
     const names=list.map(r=>r.name); let sel=app.ui.wdRep&&names.includes(app.ui.wdRep)?app.ui.wdRep:(names[0]||''); const R=list.find(r=>r.name===sel);
-    const det=R?'<div class="filters-row"><label>نماینده: <select id="wdRepSel">'+names.map(n=>'<option'+(n===sel?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label></div><div class="grid3">'
+    const det=R?'<div class="filters-row"><label>نماینده: <select id="wdRepSel">'+names.map(n=>'<option'+(n===sel?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label></div><div class="grid2">'
       +H.panel('تعداد دفعات ثبت به تفکیک روز','',Ch.slot(Ch.bar(R.byWd.map(d=>({l:d.w,v:d.visits,tip:'<b>'+d.w+'</b><br>دفعات ثبت: '+F.n(d.visits)+'<br>فاکتور: '+F.n(d.events)})),{H:200})))
-      +H.panel('مجموع فروش به تفکیک روز','',Ch.slot(Ch.bar(R.byWd.map(d=>({l:d.w,v:d.qsum,tip:'<b>'+d.w+'</b><br>مجموع: '+F.n(d.qsum)})),{H:200})))
-      +H.panel('میانگین هر فروش مثبت به تفکیک روز','روزی که کمتر از '+F.n(C.weekday.minOccurrenceForAvg)+' فروش دارد، «قابل محاسبه نیست» نمایش داده می‌شود.',Ch.slot(Ch.bar(R.byWd.map(d=>({l:d.w,v:d.events>=C.weekday.minOccurrenceForAvg?d.avg:0,tip:'<b>'+d.w+'</b><br>میانگین: '+(d.events>=C.weekday.minOccurrenceForAvg?F.n(d.avg):'قابل محاسبه نیست')+'<br>میانه: '+F.n(d.median)+'<br>تعداد فروش: '+F.n(d.events)})),{H:200,valueLabels:true})))+'</div>':'';
+      +H.panel('مجموع فروش به تفکیک روز','',Ch.slot(Ch.bar(R.byWd.map(d=>({l:d.w,v:d.qsum,tip:'<b>'+d.w+'</b><br>مجموع: '+F.n(d.qsum)})),{H:200})))+'</div>':'';
     return H.panel('خلاصه‌ی الگوها',null,'<div class="kpis">'+cards+'</div>')
       +H.panel('میانگین فروش هر روز هفته ('+esc(mt.period.label)+')','هر ستون = میانگین مقدار در هر روز تقویمی از آن روز هفته، شامل روزهای بدون فروش. واحد: '+C.measure.unit,c1)
       +H.panel('الگوی روز فروش هر نماینده','«روز بهتر» فقط با یک معیار تعیین نمی‌شود: پرتکرارترین (دفعات ثبت)، پرحجم‌ترین (جمع) و بیشترین میانگین هر فروش (حداقل '+F.n(C.weekday.minOccurrenceForAvg)+' فروش) جدا آمده‌اند؛ اگر هم‌نظر نباشند، قطعی نیست. پوشش = دفعات ثبت ÷ روزهای کاری تقویم. دفعه = هر خانه‌ی ثبت‌شده (حتی صفر). این پیشنهادها فقط از تاریخچه‌ی فروش خودِ هر نماینده است و علت را مشخص نمی‌کند.',
