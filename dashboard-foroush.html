@@ -3134,11 +3134,13 @@ TVL.views.pop={render(app){
     const NA_MKT='<span class="flat" title="برای این محصول فرض مصرف تعریف نشده است">قابل محاسبه نیست</span>';
     // Req #8 — mandatory reconciliation: province-mapped sales + unknown-province sales MUST equal the filtered company total.
     const mappedSum=mk.rows.reduce((s,r)=>s+r.sales,0); const unkSum=mk.unmapped?mk.unmapped.sales:0; const reconOk=Math.abs((mappedSum+unkSum)-mk.totalSales)<1e-6;
+    /* The "جمع فروش استان‌ها" and "کنترل تطابق" KPI cards (which just displayed the
+       mappedSum+unkSum=totalSales arithmetic) were removed from view per request; the underlying
+       reconOk check itself stays — it still silently guards the data-quality warning note below,
+       which only ever appears when the two numbers genuinely don't match (a real bug to report). */
     const recon='<div class="kpis">'
       +'<div class="kpi"><div class="l">فروش کل فیلتر</div><div class="v" style="font-size:19px">'+F.n(mk.totalSales)+'</div></div>'
-      +'<div class="kpi"><div class="l">جمع فروش استان‌ها</div><div class="v" style="font-size:19px">'+F.n(mappedSum)+'</div></div>'
-      +'<div class="kpi"><div class="l">فروش استان نامشخص</div><div class="v" style="font-size:19px">'+F.n(unkSum)+'</div></div>'
-      +'<div class="kpi"><div class="l">کنترل تطابق</div><div class="v '+(reconOk?'':'test-bad')+'" style="font-size:16px">'+F.n(mappedSum)+' + '+F.n(unkSum)+' = '+F.n(mappedSum+unkSum)+(reconOk?' ✓':' ✗ مغایر با '+F.n(mk.totalSales))+'</div></div></div>'
+      +'<div class="kpi"><div class="l">فروش استان نامشخص</div><div class="v" style="font-size:19px">'+F.n(unkSum)+'</div></div></div>'
       +(reconOk?'':'<div class="note bad"><b>خطای کیفیت داده:</b> جمع استان‌ها با فروش کل فیلترشده نمی‌خواند — این یک باگ است، لطفاً از «ابزار تحلیلگر ← مغایرت‌گیری» گزارش بدهید.</div>');
     const kp=[['جمعیت استان‌های دارای نماینده'+T('FACT'),F.n(mk.coveredPop),'مجموع جمعیت استان‌هایی که نماینده‌ی فعال دارند'],['٪ از جمعیت کشور'+T('CALCULATED'),F.pct(mk.coveredPop/mk.totalPop),'نسبت به '+F.n(mk.totalPop)+' نفر'],['استان‌های دارای نماینده',F.n(mk.coveredCount)+' از '+F.n(mk.provinceCount),'']];
     if(A){ kp.push(['بازار برآوردی بسته‌بندی کل کشور'+T('ESTIMATE'),F.n(Math.round(mk.nationalMarket))+' '+C.measure.unit,F.n(A.perCapitaMonthly)+' عدد/نفر/ماه'+T(A.tag)+' × '+F.pct(A.packagedShare,0)+' بسته‌بندی'+T(A.tag)+' × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره) × جمعیت کل']);
@@ -3152,7 +3154,11 @@ TVL.views.pop={render(app){
          legitimately have an active representative who simply hasn't sold yet in a short/partial
          period (e.g. the first few days of a new month) and still show this badge; the label spells
          that out so it is never misread as "we have no coverage there". */
-      {key:'cov',label:'وضعیت پوشش (در این دوره)',sortVal:r=>r.hasRep?1:0,cell:r=>r.hasRep?UI.badge('pos','نماینده فعال در این دوره'):UI.badge('low','بدون فروش در این دوره'),csv:r=>r.hasRep?'نماینده فعال در این دوره':'بدون فروش نماینده در این دوره'},
+      /* hasRep is scoped to the SAME period/product filter as the rest of this table (it reads
+         visits from mk.rows, built from the filtered data, not from the full dataset) — kept in
+         CSV (csv:) for whoever needs it, but the on-screen "وضعیت پوشش" column was removed per
+         request. */
+      {key:'cov',label:'وضعیت پوشش (در این دوره)',hidden:true,sortVal:r=>r.hasRep?1:0,cell:r=>r.hasRep?UI.badge('pos','نماینده فعال در این دوره'):UI.badge('low','بدون فروش در این دوره'),csv:r=>r.hasRep?'نماینده فعال در این دوره':'بدون فروش نماینده در این دوره'},
       {key:'pop',label:'جمعیت'+T('FACT'),num:true,sortVal:r=>r.pop,cell:r=>F.n(r.pop),csv:r=>r.pop,csvLabel:'جمعیت'},{key:'ps',label:'سهم جمعیت کشور',num:true,sortVal:r=>r.popShare,cell:r=>F.pct(r.popShare),csv:r=>r.popShare},
       {key:'s',label:'فروش واقعی',num:true,sortVal:r=>r.sales,cell:r=>'<b>'+F.n(r.sales)+'</b>',csv:r=>r.sales,csvLabel:'فروش واقعی'},{key:'ss',label:'سهم از فروش',num:true,sortVal:r=>r.salesShare,cell:r=>F.pct(r.salesShare),csv:r=>r.salesShare},
       {key:'pc',label:'فروش به‌ازای ۱۰۰ هزار نفر',num:true,sortVal:r=>r.perCapita,cell:r=>F.n(r.perCapita,1),csv:r=>r.perCapita},
@@ -3163,7 +3169,7 @@ TVL.views.pop={render(app){
     return recon+'<div class="kpis">'+kp.map(x=>'<div class="kpi"><div class="l">'+x[0]+'</div><div class="v" style="font-size:'+(x[1].length>14?'17':'23')+'px">'+x[1]+'</div><div class="s">'+x[2]+'</div></div>').join('')+'</div>'
       +H.panel('جدول استان‌ها بر پایه‌ی جمعیت','فروش واقعی از ردیف‌های تراکنشِ همین فیلتر مستقیماً به تفکیک استان جمع زده شده — عددی جز فروش واقعی نیست (نه سرانه، نه سهم بازار). استان‌هایی که در همین دوره/محصولِ فیلترشده فروشی ثبت نشده هم برای مقایسه آمده‌اند؛ این لزوماً به‌معنای نبودِ نماینده در آن استان نیست — ممکن است نماینده‌ی آن استان در این بازه‌ی زمانی/محصول هنوز فروشی ثبت نکرده باشد.'+(A?'':' برای این محصول، دو ستون آخر «قابل محاسبه نیست» است چون فرض مصرفی تعریف نشده.'),
         UI.table('popTbl_'+p,{cols:cols,rows:mk.rows,pageSize:0,exportName:'population-share-'+p,sort:['s',-1],
-          footer:rs=>'<td>'+(mk.unmapped?'نامشخص: '+F.n(mk.unmapped.sales)+' + ':'')+'جمع کشور</td><td></td><td class="num">'+F.n(mk.totalPop)+'</td><td class="num">۱۰۰٪</td><td class="num">'+F.n(mk.totalSales)+'</td><td class="num">۱۰۰٪</td><td></td>'+(A?'<td class="num">'+F.n(Math.round(mk.nationalMarket))+'</td><td class="num">'+F.pct(mk.nationalShare,2)+'</td>':'<td></td><td></td>')})
+          footer:rs=>'<td>'+(mk.unmapped?'نامشخص: '+F.n(mk.unmapped.sales)+' + ':'')+'جمع کشور</td><td class="num">'+F.n(mk.totalPop)+'</td><td class="num">۱۰۰٪</td><td class="num">'+F.n(mk.totalSales)+'</td><td class="num">۱۰۰٪</td><td></td>'+(A?'<td class="num">'+F.n(Math.round(mk.nationalMarket))+'</td><td class="num">'+F.pct(mk.nationalShare,2)+'</td>':'<td></td><td></td>')})
       +'<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:600;font-size:13px">تحلیل پیشرفته: شاخص نسبت به جمعیت (بدون فرض مصرف)</summary><div style="margin-top:10px">'+adv+'</div></details>'); });
 }};
 TVL.views.rshare={render(app){
