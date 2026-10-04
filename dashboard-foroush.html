@@ -2498,7 +2498,14 @@ TVL.ui = (function(){
   }
   function badge(kind,text){ return '<span class="tag t-'+kind+'">'+esc(text)+'</span>'; }
   function statusBadge(s){ const m={Growing:'pos',Declining:'med',Stopped:'high',New:'sugg',Stable:'low',NA:'low',Incomplete:'low'}; return badge(m[s.code]||'low',s.label); }
-  function tagBadge(t){ return '<span class="tag t-'+({FACT:'pos',ASSUMPTION:'med',ESTIMATE:'sugg',CALCULATED:'low'}[t]||'low')+'" title="'+esc(TVL.config.tags[t])+'">'+t+'</span>'; }
+  /* Shows the Persian word (TVL.config.tags[t]) instead of the raw English key (FACT/ASSUMPTION/
+     ESTIMATE/CALCULATED) that used to be the badge's only visible text — those four letters meant
+     nothing without reading the one explanatory panel at the top of the Population tab first, and
+     every other place this badge appears (KPI cards, table column headers) repeated the bare
+     English with no such explanation nearby. The longer meaning (what it implies for this number)
+     still lives in the hover tooltip, for anyone who wants it. */
+  const TAG_HINT={FACT:'عدد واقعی از منبع رسمی، نه تخمین',ASSUMPTION:'فرضی است که کاربر وارد کرده، نه داده‌ی واقعی',ESTIMATE:'برآورد محاسبه‌شده از یک فرض، نه عدد قطعی',CALCULATED:'از داده‌های بالا محاسبه شده است'};
+  function tagBadge(t){ return '<span class="tag t-'+({FACT:'pos',ASSUMPTION:'med',ESTIMATE:'sugg',CALCULATED:'low'}[t]||'low')+'" title="'+esc(TAG_HINT[t]||TVL.config.tags[t])+'">'+esc(TVL.config.tags[t]||t)+'</span>'; }
   return {$,$$,initTip,initTables,modal,closeModal,toast,busy,download,table,tableRefresh,badge,statusBadge,tagBadge,esc,stkCell:(n,html,extra)=>'<td class="'+(extra||'')+' stk'+(n===Math.max(...Object.keys(STK_W).map(Number))?' stk-edge':'')+'" style="'+stkStyle(n)+'">'+html+'</td>'};
 })();
 
@@ -3119,7 +3126,7 @@ TVL.views.buyday={render(app){
 const T=t=>' '+TVL.ui.tagBadge(t);
 function common(app){ const C=TVL.config,F=TVL.fmt;
   return '<div class="panel"><h2>منبع و برچسب داده‌ها</h2><p class="sub">'+TVL.ui.tagBadge('FACT')+' جمعیت: '+F.esc(C.market.populationSource)+'، سال '+C.market.populationYearLabel+' (آخرین سرشماری کامل: ۱۳۹۵؛ اعداد بعدی برآورد رسمی‌اند). مجموع ۳۱ استان: '+F.n(TVL.market.TOTAL)+' نفر.<br>'
-    +TVL.ui.tagBadge('ASSUMPTION')+' سرانه‌ی مصرف و سهم بسته‌بندی را کاربر داده است و فقط برای محصولاتی که در Config تعریف شده‌اند (فعلاً تخم‌مرغ) به‌کار می‌رود. '+TVL.ui.tagBadge('ESTIMATE')+' بازار برآوردی = جمعیت × سرانه × ماه × سهم بسته‌بندی. '+TVL.ui.tagBadge('CALCULATED')+' شاخص‌ها و سهم‌ها از داده‌ی بالا محاسبه می‌شوند.</p></div>'; }
+    +TVL.ui.tagBadge('ASSUMPTION')+' سرانه‌ی مصرف و سهم بسته‌بندی را کاربر داده است و فقط برای محصولاتی که این فرض برایشان تعریف شده (فعلاً تخم‌مرغ) به‌کار می‌رود. '+TVL.ui.tagBadge('ESTIMATE')+' بازار برآوردی = جمعیت × سرانه × ماه × سهم بسته‌بندی. '+TVL.ui.tagBadge('CALCULATED')+' شاخص‌ها و سهم‌ها از داده‌ی بالا محاسبه می‌شوند.</p></div>'; }
 TVL.views.pop={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,esc=F.esc,C=TVL.config;
   return common(app)+H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
@@ -3134,7 +3141,7 @@ TVL.views.pop={render(app){
       +'<div class="kpi"><div class="l">کنترل تطابق</div><div class="v '+(reconOk?'':'test-bad')+'" style="font-size:16px">'+F.n(mappedSum)+' + '+F.n(unkSum)+' = '+F.n(mappedSum+unkSum)+(reconOk?' ✓':' ✗ مغایر با '+F.n(mk.totalSales))+'</div></div></div>'
       +(reconOk?'':'<div class="note bad"><b>خطای کیفیت داده:</b> جمع استان‌ها با فروش کل فیلترشده نمی‌خواند — این یک باگ است، لطفاً از «ابزار تحلیلگر ← مغایرت‌گیری» گزارش بدهید.</div>');
     const kp=[['جمعیت استان‌های دارای نماینده'+T('FACT'),F.n(mk.coveredPop),'مجموع جمعیت استان‌هایی که نماینده‌ی فعال دارند'],['٪ از جمعیت کشور'+T('CALCULATED'),F.pct(mk.coveredPop/mk.totalPop),'نسبت به '+F.n(mk.totalPop)+' نفر'],['استان‌های دارای نماینده',F.n(mk.coveredCount)+' از '+F.n(mk.provinceCount),'']];
-    if(A){ kp.push(['بازار برآوردی بسته‌بندی کل کشور'+T('ESTIMATE'),F.n(Math.round(mk.nationalMarket))+' '+C.measure.unit,F.n(A.perCapitaMonthly)+' عدد/نفر/ماه ('+A.tag+') × '+F.pct(A.packagedShare,0)+' بسته‌بندی ('+A.tag+') × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره) × جمعیت کل']);
+    if(A){ kp.push(['بازار برآوردی بسته‌بندی کل کشور'+T('ESTIMATE'),F.n(Math.round(mk.nationalMarket))+' '+C.measure.unit,F.n(A.perCapitaMonthly)+' عدد/نفر/ماه'+T(A.tag)+' × '+F.pct(A.packagedShare,0)+' بسته‌بندی'+T(A.tag)+' × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره) × جمعیت کل']);
       kp.push(['سهم بازار برآوردی شما (کل کشور)'+T('ESTIMATE'),F.pct(mk.nationalShare,2),'فروش کل ÷ بازار برآوردی بسته‌بندی کل کشور']); }
     else kp.push(['سهم بازار برآوردی','قابل محاسبه نیست','برای «'+esc(p)+'» فرض مصرف تعریف نشده؛ سهم بازار محاسبه نمی‌شود (صفر نمایش داده نمی‌شود).']);
     const cols=[{key:'k',label:'استان',sortVal:r=>r.prov,cell:r=>esc(r.prov),csv:r=>r.prov},
