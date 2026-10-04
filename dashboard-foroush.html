@@ -2327,7 +2327,7 @@ TVL.alerts = (function(){
               evidence:[['ماه قبل',C.weekdays[a.i]+' ('+F.pct(a.share,0)+')'],['ماه جاری',C.weekdays[b.i]+' ('+F.pct(b.share,0)+')']],investigate:['تغییر برنامه‌ی ارسال/ویزیت این نماینده']})); }); })();
     });
     // data-quality alerts
-    ds.dq.issues.filter(i=>i.sev==='Critical'||i.sev==='High').forEach(i=>out.push(mk({rule:'dq',kind:'data',severity:i.sev==='Critical'?'High':'Medium',entityType:'dataset',entity:i.title,metric:'کنترل کیفیت داده',threshold:i.sev,title:i.title,evidence:[['جزئیات',i.detail],['تعداد',F.n(i.count)]],investigate:['بررسی در «ابزار تحلیلگر ← کیفیت داده»'],cause:'این یک مسئله‌ی کیفیت داده است، نه یک رویداد کسب‌وکاری.'})));
+    ds.dq.issues.filter(i=>i.sev==='Critical'||i.sev==='High').forEach(i=>out.push(mk({rule:'dq',kind:'data',severity:i.sev==='Critical'?'High':'Medium',entityType:'dataset',entity:i.title,metric:'کنترل کیفیت داده',threshold:(i.sev==='Critical'?'بحرانی':'بالا')+' طبق مرکز کیفیت داده',title:i.title,evidence:[['جزئیات',i.detail],['تعداد',F.n(i.count)]],investigate:['بررسی در «ابزار تحلیلگر ← کیفیت داده»'],cause:'این یک مسئله‌ی کیفیت داده است، نه یک رویداد کسب‌وکاری.'})));
     out.sort((a,b)=>(a.kind==='opportunity')-(b.kind==='opportunity')||SEVORD[a.severity]-SEVORD[b.severity]);
     return out;
   }
@@ -3156,16 +3156,30 @@ TVL.views.al={render(app){
   const F=TVL.fmt,H=TVL.vh,esc=F.esc; const all=app.alerts, f=app.ui.alertF||{sev:'',kind:'',rule:''};
   const rules=[...new Set(all.map(a=>a.rule))]; const list=all.filter(a=>(!f.sev||a.severity===f.sev)&&(!f.kind||a.kind===f.kind)&&(!f.rule||a.rule===f.rule));
   const opt=(v,l,cur)=>'<option value="'+v+'"'+(cur===v?' selected':'')+'>'+l+'</option>';
+  /* Plain-language label for the internal severity code — the filter dropdown and every card's
+     badge used to print the raw English word (High/Medium/Low/Info) straight from the data model;
+     now only the label is shown, the English code stays purely internal (filter value, CSS class). */
+  const SEV_LABEL={High:'بالا',Medium:'متوسط',Low:'پایین',Info:'اطلاعاتی'};
   const why=a=>({drop:'این موجودیت بخشی از فروش دوره‌ی قبل را می‌ساخت؛ افت آن مستقیماً روی جمع فروش اثر می‌گذارد.',growth:'رشد بالا اگر پایدار باشد، فرصت افزایش سهم است؛ اگر مقطعی باشد، نباید مبنای برنامه‌ریزی شود.',repInactive:'توقف یا وقفه‌ی نماینده یعنی پوشش بازار همان ناحیه کم شده است.',custInactive:'عدم فعالیت مشتری یعنی فروش تکرارشونده‌ی آن مشتری قطع شده است.',spike:'یک عدد بسیار بزرگ می‌تواند میانگین‌ها و روند را منحرف کند و باید تأیید شود.',abnormalDay:'روز غیرعادی میانگین روزانه و الگوی روز را جابه‌جا می‌کند.',concentration:'وابستگی به یک نماینده ریسک افت ناگهانی کل فروش را بالا می‌برد.',missingData:'داده‌ی جاافتاده باعث می‌شود جمع‌ها و رشدها کمتر از واقعیت دیده شوند.',dq:'مسئله‌ی کیفیت داده می‌تواند اعتبار همه‌ی اعداد را تحت تأثیر بگذارد.',patternShift:'تغییر روز غالب ممکن است برنامه‌ی ارسال/ویزیت را تغییر داده باشد؛ نیازمند تأیید است.'}[a.rule]||'');
-  const ctl='<div class="filters-row"><label>شدت <select id="afSev">'+opt('','همه',f.sev)+['High','Medium','Low','Info'].map(x=>opt(x,x,f.sev)).join('')+'</select></label><label>نوع <select id="afKind">'+opt('','همه',f.kind)+opt('business','کسب‌وکاری',f.kind)+opt('opportunity','فرصت',f.kind)+opt('data','کیفیت داده',f.kind)+'</select></label><label>قاعده <select id="afRule">'+opt('','همه',f.rule)+rules.map(r=>opt(r,TVL.alerts.RULES[r],f.rule)).join('')+'</select></label><button class="btn" id="afExp">خروجی CSV فهرست هشدارها</button><span class="tcount">'+F.n(list.length)+' از '+F.n(all.length)+'</span></div>';
+  const ctl='<div class="filters-row"><label>شدت <select id="afSev">'+opt('','همه',f.sev)+['High','Medium','Low','Info'].map(x=>opt(x,SEV_LABEL[x],f.sev)).join('')+'</select></label><label>نوع <select id="afKind">'+opt('','همه',f.kind)+opt('business','کسب‌وکاری',f.kind)+opt('opportunity','فرصت',f.kind)+opt('data','کیفیت داده',f.kind)+'</select></label><label>قاعده <select id="afRule">'+opt('','همه',f.rule)+rules.map(r=>opt(r,TVL.alerts.RULES[r],f.rule)).join('')+'</select></label><button class="btn" id="afExp">خروجی CSV فهرست هشدارها</button><span class="tcount">'+F.n(list.length)+' از '+F.n(all.length)+'</span></div>';
   const sevCls=a=>a.kind==='opportunity'?'opp':a.severity.toLowerCase();
-  const card=a=>'<div class="alert '+sevCls(a)+'"><h3>'+esc(a.title)+'</h3><div class="meta">'+(a.kind==='opportunity'?'<span class="tag t-pos">فرصت</span> ':'<span class="tag t-'+({High:'high',Medium:'med',Low:'low',Info:'sugg'}[a.severity])+'">'+a.severity+'</span> ')+esc(a.ruleLabel)+' · '+esc(TVL.alerts.ENT[a.entityType]||a.entityType)+': '+esc(a.entity)+(a.product?' · '+esc(a.product):'')+'</div>'
-    +'<dl><dt>معیار:</dt><dd>'+esc(a.metric)+'</dd><dt>آستانه:</dt><dd>'+esc(a.threshold)+'</dd></dl><div><b>شواهد</b><dl>'+a.evidence.map(e=>'<dt>'+esc(e[0])+':</dt><dd>'+esc(e[1])+'</dd>').join('')+'</dl></div>'
-    +'<div><b>چه اتفاقی افتاد؟</b> '+esc(a.title)+'</div><div><b>چرا مهم است؟</b> '+esc(why(a))+'</div><div><b>چه چیزی بررسی شود؟</b><ul>'+a.investigate.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="sub" style="margin:6px 0 0">'+esc(a.cause)+'</div></div>';
+  /* One scannable card per alert: title + severity/rule/entity on one line, then the plain-language
+     "چرا مهم است" sentence as the main readable content, then the actionable "چه کاری انجام شود"
+     list (if any) and the honest "علت" line. The old card also repeated the title verbatim under
+     "چه اتفاقی افتاد؟" (pure duplication) and put معیار/آستانه/شواهد — raw rule internals meant for
+     someone auditing the rule, not reading the alert — in the same flat list as the readable parts.
+     Those now live in a collapsed "جزئیات فنی (برای تحلیلگر)" section, one click away but not in
+     the way of a manager scanning many cards. */
+  const card=a=>{ const sevBadge=a.kind==='opportunity'?'<span class="tag t-pos">فرصت</span>':'<span class="tag t-'+({High:'high',Medium:'med',Low:'low',Info:'sugg'}[a.severity])+'">'+SEV_LABEL[a.severity]+'</span>';
+    return '<div class="alert '+sevCls(a)+'"><h3>'+esc(a.title)+'</h3><div class="meta">'+sevBadge+' '+esc(a.ruleLabel)+' · '+esc(TVL.alerts.ENT[a.entityType]||a.entityType)+': '+esc(a.entity)+(a.product?' · '+esc(a.product):'')+'</div>'
+      +(why(a)?'<div style="margin-top:6px">'+esc(why(a))+'</div>':'')
+      +(a.investigate.length?'<div style="margin-top:6px"><b>چه کاری انجام شود؟</b><ul>'+a.investigate.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'')
+      +'<div class="sub" style="margin-top:6px">'+esc(a.cause)+'</div>'
+      +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">جزئیات فنی (برای تحلیلگر)</summary><div style="margin-top:6px"><dl><dt>معیار</dt><dd>'+esc(a.metric)+'</dd><dt>آستانه (قاعده‌ی دقیقی که این هشدار را صادر کرد)</dt><dd>'+esc(a.threshold)+'</dd></dl><div><b>شواهد</b><dl>'+a.evidence.map(e=>'<dt>'+esc(e[0])+'</dt><dd>'+esc(e[1])+'</dd>').join('')+'</dl></div></div></details></div>'; };
   const risks=list.filter(a=>a.kind!=='opportunity'), opps=list.filter(a=>a.kind==='opportunity');
-  return H.periodNote(app.mt)+H.panel('مرکز هشدار — '+esc(app.mt.period.label),'هر هشدار شدت، موجودیت، شواهد، معیار، آستانه و پیشنهاد بررسی دارد. علت فقط وقتی گفته می‌شود که در داده مستند باشد؛ در غیر این صورت صریحاً «قابل تشخیص نیست» نوشته می‌شود.',ctl)
+  return H.periodNote(app.mt)+H.panel('مرکز هشدار — '+esc(app.mt.period.label),'هر کارت یک هشدار است: چرا مهم است و چه کاری باید انجام شود. جزئیات فنی (معیار دقیق و شواهد عددی) زیر هر کارت، در بخش «برای تحلیلگر»، با یک کلیک قابل مشاهده است. علت فقط وقتی گفته می‌شود که در داده مستند باشد؛ در غیر این صورت صریحاً «قابل تشخیص نیست» نوشته می‌شود.',ctl)
     +(risks.length?H.panel('ریسک‌ها و موارد نیازمند بررسی ('+F.n(risks.length)+')','',risks.map(card).join('')):'<div class="panel"><div class="empty">هشداری با این فیلتر وجود ندارد.</div></div>')
-    +(opps.length?H.panel('فرصت‌ها ('+F.n(opps.length)+')','',opps.map(card).join('')):''); 
+    +(opps.length?H.panel('فرصت‌ها ('+F.n(opps.length)+')','',opps.map(card).join('')):'');
 },bind(app,root){ const g=()=>({sev:root.querySelector('#afSev').value,kind:root.querySelector('#afKind').value,rule:root.querySelector('#afRule').value});
   ['afSev','afKind','afRule'].forEach(id=>{ const e=root.querySelector('#'+id); if(e) e.onchange=()=>{ app.ui.alertF=g(); app.render(); }; });
   const x=root.querySelector('#afExp'); if(x) x.onclick=()=>TVL.ui.download('alerts.csv',TVL.export.alerts(app.alerts)); }};
