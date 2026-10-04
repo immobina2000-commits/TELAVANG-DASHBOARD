@@ -3037,7 +3037,14 @@ TVL.views.wd={render(app){
     const c1=Ch.slot(Ch.bar(avg.map(a=>({l:C.weekdays[a.w],v:a.v,tip:'<b>'+C.weekdays[a.w]+'</b><br>میانگین فروش هر '+C.weekdays[a.w]+' (شامل روزهای بدون فروش): '+F.n(a.v)+'<br>تعداد '+C.weekdays[a.w]+'های بازه: '+F.n(a.n)})),{H:230,title:'میانگین فروش هر روز هفته'}));
     const dayName=d=>d?d.w:'—';
     const cols=[{key:'n',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name),csv:r=>r.name},{key:'loc',label:'استان / شهر',cell:r=>esc((r.province||'نامشخص')+' / '+(r.city||'—')),csv:r=>(r.province||'')+' / '+(r.city||'')},
-      {key:'v',label:'دفعات ثبت',num:true,sortVal:r=>r.visits,cell:r=>F.n(r.visits),csv:r=>r.visits},{key:'e',label:'فاکتور',num:true,sortVal:r=>r.events,cell:r=>F.n(r.events),csv:r=>r.events},{key:'ad',label:'روز فعال',num:true,sortVal:r=>r.activeDays,cell:r=>F.n(r.activeDays),csv:r=>r.activeDays},
+      /* دفعات ثبت (visits, every recorded cell incl. zero-value ones) and روز فعال (activeDays,
+         distinct calendar days with a positive sale) are kept in analyze()/CSV but not shown as
+         their own columns here: in this dataset every representative has exactly one invoice row
+         per active day and no zero-only rows survive into this filtered view, so all three numbers
+         were always identical — فاکتور alone, kept visible, says the same thing without the
+         redundant columns. (They can genuinely diverge — e.g. more than one invoice on the same
+         day — so the raw fields stay available in CSV export for anyone who needs to check.) */
+      {key:'v',label:'دفعات ثبت',num:true,hidden:true,sortVal:r=>r.visits,cell:r=>F.n(r.visits),csv:r=>r.visits},{key:'e',label:'فاکتور',num:true,sortVal:r=>r.events,cell:r=>F.n(r.events),csv:r=>r.events},{key:'ad',label:'روز فعال',num:true,hidden:true,sortVal:r=>r.activeDays,cell:r=>F.n(r.activeDays),csv:r=>r.activeDays},
       {key:'cov',label:'پوشش',num:true,sortVal:r=>r.coverage,cell:r=>F.pct(r.coverage,0),csv:r=>r.coverage},
       {key:'mf',label:'پرتکرارترین روز',sortVal:r=>dayName(r.mostFrequent),cell:r=>r.mostFrequent?esc(r.mostFrequent.w)+' ('+F.n(r.mostFrequent.visits)+')':'—',csv:r=>dayName(r.mostFrequent)},
       {key:'hv',label:'پرحجم‌ترین روز',sortVal:r=>dayName(r.highestVolume),cell:r=>r.highestVolume?esc(r.highestVolume.w)+' ('+F.n(r.highestVolume.qsum)+')':'—',csv:r=>dayName(r.highestVolume)},
