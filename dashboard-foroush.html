@@ -3018,18 +3018,16 @@ TVL.views.geo={render(app){
   return H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
     if(!H.hasData(pm)) return H.empty; const hasCust=!!pm.dims.customer;
     const repsBy=(key)=>{ const m=new Map(); pm.dims.rep.forEach(r=>{ if(r.cur>0){ const k=r[key]||TVL.filters.NULLV; m.set(k,(m.get(k)||0)+1); } }); return m; };
-    const rp=repsBy('province'), rc=repsBy('city');
+    const rp=repsBy('province');
     const custBy=(key)=>{ if(!hasCust) return null; const m=new Map(); pm.cur.forEach(r=>{ if(r.v>0&&r.customer){ const k=r[key]||TVL.filters.NULLV; if(!m.has(k)) m.set(k,new Set()); m.get(k).add(r.customer); } }); return m; };
-    const cp=custBy('province'), cc=custBy('city');
-    const prows=pm.dims.province, crows=pm.dims.city;
+    const cp=custBy('province');
+    const prows=pm.dims.province;
     const base=(id,rows,keyName,extra)=>[{key:'rank',label:'رتبه',num:true,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},{key:'k',label:keyName,sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label}].concat(extra||[],[
       {key:'cur',label:'فروش',num:true,sortVal:r=>r.cur,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},{key:'gr',label:'رشد',num:true,sortVal:r=>r.growth,cell:r=>H.gro(r.growth,r.prev),csv:r=>r.growth},{key:'sh',label:'سهم',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share}]);
     const pcols=base('p',prows,'استان').concat([{key:'ar',label:'نماینده‌ی فعال',num:true,sortVal:r=>rp.get(r.key)||0,cell:r=>F.n(rp.get(r.key)||0),csv:r=>rp.get(r.key)||0}]).concat(hasCust?[{key:'ac',label:'مشتری فعال',num:true,cell:r=>F.n(cp.get(r.key)?cp.get(r.key).size:0)}]:[]).concat([{key:'avg',label:'میانگین هر روز فعال',num:true,sortVal:r=>r.avgDaily,cell:r=>F.n(r.avgDaily),csv:r=>r.avgDaily}]);
-    const ccols=base('c',crows,'شهر',[{key:'pv',label:'استان',sortVal:r=>r.province||'',cell:r=>esc(r.province||'نامشخص'),csv:r=>r.province}]).concat([{key:'ar',label:'تعداد نماینده',num:true,sortVal:r=>rc.get(r.key)||0,cell:r=>F.n(rc.get(r.key)||0),csv:r=>rc.get(r.key)||0}]).concat(hasCust?[{key:'ac',label:'تعداد مشتری',num:true,cell:r=>F.n(cc.get(r.key)?cc.get(r.key).size:0)}]:[]);
     const bars=Ch.hbar(prows.filter(r=>r.cur>0).slice(0,15).map(r=>({l:r.label,v:r.cur,r:F.pct(r.share,1),tip:'<b>'+esc(r.label)+'</b><br>فروش: '+F.n(r.cur)+'<br>سهم: '+F.pct(r.share)+'<br>رشد: '+F.sgn(r.growth)+'<br>نماینده‌ی فعال: '+F.n(rp.get(r.key)||0)})));
     return H.panel('رتبه‌بندی استان‌ها ('+esc(mt.period.label)+')','۱۵ استان برتر بر پایه‌ی فروش. واحد: '+C.measure.unit,bars)
-      +H.panel('جدول استان‌ها','',UI.table('provTbl_'+p,{cols:pcols,rows:prows,pageSize:35,search:(r,q)=>r.label.includes(q),exportName:'provinces-'+p,sort:['cur',-1]}))
-      +H.panel('جدول شهرها','شهر از متن داخل پرانتز نام نماینده (یا ستون شهر) استخراج شده است.',UI.table('cityTbl_'+p,{cols:ccols,rows:crows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')).includes(q),exportName:'cities-'+p,sort:['cur',-1]})); });
+      +H.panel('جدول استان‌ها','',UI.table('provTbl_'+p,{cols:pcols,rows:prows,pageSize:35,search:(r,q)=>r.label.includes(q),exportName:'provinces-'+p,sort:['cur',-1]})); });
 }};
 
 /* ---------- views/weekday.js ---------- */
