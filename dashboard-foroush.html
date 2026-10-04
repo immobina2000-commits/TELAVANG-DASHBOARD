@@ -3122,9 +3122,10 @@ TVL.views.buyday={render(app){
 
 /* ---------- views/market-share.js ---------- */
 /* ===== views/market-share.js — per-representative share: of total company sales, and of their
-   own province's sales. The province-level breakdown table and the market-size-estimate columns
-   that used to live here (population, ESTIMATE/ASSUMPTION/FACT badges, the reconciliation KPIs)
-   were removed per request — this view now shows exactly the two numbers asked for, nothing else. */
+   own province's sales, plus their province's population for context. The province-level
+   breakdown table and the market-size-estimate columns (ESTIMATE/ASSUMPTION/FACT badges, the
+   reconciliation KPIs) were removed per an earlier request — this view keeps exactly the fields
+   asked for: population, company-wide share, and province share, nothing else. ===== */
 TVL.views.pop={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,esc=F.esc;
   return H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
@@ -3133,11 +3134,12 @@ TVL.views.pop={render(app){
     const cols=[{key:'r',label:'رتبه',num:true,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},
       {key:'n',label:'نماینده',sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
       {key:'p',label:'استان',sortVal:r=>r.province||'',cell:r=>esc(r.province||'نامشخص'),csv:r=>r.province},
+      {key:'pop',label:'جمعیت استان',num:true,sortVal:r=>r.pop,cell:r=>r.pop===null?'<span class="flat">نامشخص</span>':F.n(r.pop),csv:r=>r.pop},
       {key:'sc',label:'سهم از فروش کل شرکت',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share},
       {key:'sp',label:'سهم از فروش همان استان',num:true,sortVal:r=>r.provShare,cell:r=>r.provShare===null?'<span class="flat">قابل محاسبه نیست</span>':F.pct(r.provShare),csv:r=>r.provShare}];
-    return H.panel('سهم هر نماینده ('+esc(mt.period.label)+')','سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر. سهم از فروش همان استان = فروش این نماینده ÷ جمع فروش همه‌ی نمایندگان همان استان (وقتی چند نماینده در یک استان‌اند).',
+    return H.panel('سهم هر نماینده ('+esc(mt.period.label)+')','جمعیت استان = جمعیت کل استانی که این نماینده در آن است. سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر. سهم از فروش همان استان = فروش این نماینده ÷ جمع فروش همه‌ی نمایندگان همان استان (وقتی چند نماینده در یک استان‌اند).',
       UI.table('rshareTbl_'+p,{cols:cols,rows:rows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')).includes(q),exportName:'rep-share-'+p,sort:['sc',-1],
-        footer:rs=>'<td colspan="3">جمع</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td>'})); });
+        footer:rs=>'<td colspan="4">جمع</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td>'})); });
 }};
 
 /* ---------- views/alerts-view.js ---------- */
