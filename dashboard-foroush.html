@@ -3145,7 +3145,7 @@ TVL.views.pop={render(app){
       {key:'m',label:'بازار برآوردی استان',num:true,sortVal:r=>A&&r.market!==null?r.market:-1,cell:r=>(A&&r.market!==null)?F.n(Math.round(r.market)):NA_MKT,csv:r=>(A&&r.market!==null)?r.market:'',csvLabel:'بازار برآوردی استان'},
       {key:'ms',label:'سهم بازار استانی',num:true,sortVal:r=>A&&r.mShare!==null?r.mShare:-1,cell:r=>(A&&r.mShare!==null)?F.pct(r.mShare,2):NA_MKT,csv:r=>(A&&r.mShare!==null)?r.mShare:'',csvLabel:'سهم بازار استانی'}];
     const marketNote=A?(' بازار برآوردی استان = جمعیت استان × '+F.n(A.perCapitaMonthly)+' عدد/نفر/ماه × '+F.pct(A.packagedShare,0)+' بسته‌بندی × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره). سهم بازار استانی = فروش این نماینده ÷ همان بازار برآوردی (فرض بر این‌که فروش نمایندگان تماماً تخم‌مرغ بسته‌بندی است).'):(' برای «'+esc(p)+'» فرض مصرفی تعریف نشده، پس دو ستون آخر «قابل محاسبه نیست» است.');
-    return H.panel('سهم هر نماینده ('+esc(mt.period.label)+')','جمعیت استان = جمعیت کل استانی که این نماینده در آن است. سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر. سهم از فروش همان استان = فروش این نماینده ÷ جمع فروش همه‌ی نمایندگان همان استان (وقتی چند نماینده در یک استان‌اند).'+marketNote,
+    return H.panel('سهم هر نماینده در استان ('+esc(mt.period.label)+')','جمعیت استان = جمعیت کل استانی که این نماینده در آن است. سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر. سهم از فروش همان استان = فروش این نماینده ÷ جمع فروش همه‌ی نمایندگان همان استان (وقتی چند نماینده در یک استان‌اند).'+marketNote,
       UI.table('rshareTbl_'+p,{cols:cols,rows:rows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')).includes(q),exportName:'rep-share-'+p,sort:['sc',-1],
         footer:rs=>'<td colspan="4">جمع</td><td class="num">'+F.n(rs.reduce((s,r)=>s+r.cur,0))+'</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td><td></td><td></td>'})); });
 }};
@@ -3608,7 +3608,7 @@ TVL.views.forecast={render(app){
 TVL.app = (function(){
   const F=TVL.fmt, UI=TVL.ui, Fi=TVL.filters, esc=F.esc, C=TVL.config;
   const app={ds:null,st:null,mt:null,alerts:[],tab:'ov',ui:{openMs:null,msSearch:'',theme:null,analystTab:'dq'}};
-  const NAV=[['ov','نمای کلی','overview'],['fc','پیش‌بینی','forecast'],['tr','روند فروش','trend'],['rp','نمایندگان','reps'],['wd','الگوی روز فروش','wd'],['bd','روز پیشنهادی خرید','buyday'],['geo','جغرافیا','geo'],['pop','سهم هر نماینده','pop'],['prod','محصولات','prod'],['cust','مشتریان','cust'],['al','هشدارها و فرصت‌ها','al'],['dt','داده‌ی جزئی','raw']];
+  const NAV=[['ov','نمای کلی','overview'],['fc','پیش‌بینی','forecast'],['tr','روند فروش','trend'],['rp','نمایندگان','reps'],['wd','الگوی روز فروش','wd'],['bd','روز پیشنهادی خرید','buyday'],['geo','جغرافیا','geo'],['pop','سهم هر نماینده در استان','pop'],['prod','محصولات','prod'],['cust','مشتریان','cust'],['al','هشدارها و فرصت‌ها','al'],['dt','داده‌ی جزئی','raw']];
   const $=id=>document.getElementById(id);
 
   function bundledBytes(){ const el=$('bundled-xlsx'); if(!el) return null; const bin=atob(el.textContent.trim()); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
