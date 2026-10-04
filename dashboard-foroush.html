@@ -2514,7 +2514,14 @@ TVL.charts = (function(){
   function bar(items,o){ o=o||{}; return W=>{
     if(!items.length) return EMPTY; const H=o.H||240; let mx=Math.max(...items.map(i=>i.v),...(o.line||[]).filter(x=>x!==null&&x!==undefined),0); const max=nice(mx*1.06||1);
     const pad={l:padL(max),r:14,t:22,b:o.rot?52:34}; const n=items.length, bw=(W-pad.l-pad.r)/n; const step=Math.max(1,Math.ceil(n*(o.labelW||46)/(W-pad.l-pad.r)));
-    let s=axisY(W,H,pad,max,4); const showVals=o.valueLabels!==false&&n<=(o.maxLabels||14)&&bw>34;
+    let s=axisY(W,H,pad,max,4);
+    /* Value labels must never collide: estimate each number's rendered width from its digit/
+       separator count (Persian numerals ≈ monospace at this font-size) and only show them when
+       every bar is comfortably wider than its own label — a flat px floor (e.g. "bw>34") looks
+       fine for 3-digit values but overlaps badly once values run to 6-7 digits (as forecast
+       totals routinely do), which is exactly what made narrow (grid2-width) bar charts illegible. */
+    const valLen=Math.max(...items.map(i=>F.n(i.v).length),1);
+    const showVals=o.valueLabels!==false&&n<=(o.maxLabels||14)&&bw>Math.max(34,valLen*7.6+6);
     items.forEach((it,i)=>{ const h=Math.max(0,(H-pad.t-pad.b)*it.v/max),x=pad.l+i*bw,y=H-pad.b-h;
       s+='<rect class="bar '+(it.cls||'')+'" x="'+(x+bw*.14)+'" y="'+y+'" width="'+Math.max(1,bw*.72)+'" height="'+h+'" rx="2" tabindex="0" data-tip="'+esc(it.tip||(it.l+'<br><b>'+F.n(it.v)+'</b>'))+'" aria-label="'+esc(it.l+': '+F.n(it.v))+'"'+(it.color?' style="fill:'+it.color+'"':'')+'/>';
       if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+16)+'" text-anchor="middle"'+(o.rot?' transform="rotate(-35 '+(x+bw/2)+' '+(H-pad.b+16)+')"':'')+'>'+rt(esc(it.l))+'</text>';
@@ -3566,10 +3573,8 @@ TVL.views.forecast={render(app){
       +'</div>'
       +H.panel('هماهنگی عدد کل با نمایندگان','',consistencyPanel(fc))
       +H.panel('هدف فروش','','<div class="note">هدف فروش برای این دوره در داده/تنظیمات تعریف نشده است؛ بنابراین عدد هدف ساختگی نمایش داده نمی‌شود.</div>')
-      +'<div class="grid2">'
-        +H.panel('پیش‌بینی یک نماینده','<label>انتخاب نماینده: <select id="fcRepSel">'+repOptions.map(r=>'<option value="'+esc(r.name)+'"'+(r.name===selRep?' selected':'')+'>'+esc(r.name)+'</option>').join('')+'</select></label>',repChart)
-        +H.panel('مقایسه‌ی نمایندگان: فعلی در برابر پیش‌بینی','۱۴ نماینده‌ی برتر بر اساس پیش‌بینی پایان ماه.',repBar)
-      +'</div>'
+      +H.panel('پیش‌بینی یک نماینده','<label>انتخاب نماینده: <select id="fcRepSel">'+repOptions.map(r=>'<option value="'+esc(r.name)+'"'+(r.name===selRep?' selected':'')+'>'+esc(r.name)+'</option>').join('')+'</select></label>',repChart)
+      +H.panel('مقایسه‌ی نمایندگان: فعلی در برابر پیش‌بینی','۱۴ نماینده‌ی برتر بر اساس پیش‌بینی پایان ماه.',repBar)
       +H.panel('هشدارهای پیش‌بینی','نمایندگانی که پیش‌بینی آن‌ها نیازمند بررسی بیشتر است (داده‌ی کم، نوسان بالا یا اختلاف زیاد بین روش‌ها).',riskAlerts(fc))
       +H.panel('جدول رتبه‌بندی پیش‌بینی نمایندگان','برای مرتب‌سازی روی سرستون و برای جزئیات هر نماینده روی ردیف کلیک کنید.',repTable(fc))
       +'<div class="panel">'+methodology(fc,p)+'</div>'
