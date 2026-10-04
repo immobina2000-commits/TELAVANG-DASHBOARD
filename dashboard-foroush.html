@@ -3139,6 +3139,7 @@ TVL.views.pop={render(app){
       {key:'n',label:'نماینده',sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
       {key:'p',label:'استان',sortVal:r=>r.province||'',cell:r=>esc(r.province||'نامشخص'),csv:r=>r.province},
       {key:'pop',label:'جمعیت استان',num:true,sortVal:r=>r.pop,cell:r=>r.pop===null?'<span class="flat">نامشخص</span>':F.n(r.pop),csv:r=>r.pop},
+      {key:'s',label:'فروش نماینده',num:true,sortVal:r=>r.cur,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},
       {key:'sc',label:'سهم از فروش کل شرکت',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share},
       {key:'sp',label:'سهم از فروش همان استان',num:true,sortVal:r=>r.provShare,cell:r=>r.provShare===null?'<span class="flat">قابل محاسبه نیست</span>':F.pct(r.provShare),csv:r=>r.provShare},
       {key:'m',label:'بازار برآوردی استان',num:true,sortVal:r=>A&&r.market!==null?r.market:-1,cell:r=>(A&&r.market!==null)?F.n(Math.round(r.market)):NA_MKT,csv:r=>(A&&r.market!==null)?r.market:'',csvLabel:'بازار برآوردی استان'},
@@ -3146,7 +3147,7 @@ TVL.views.pop={render(app){
     const marketNote=A?(' بازار برآوردی استان = جمعیت استان × '+F.n(A.perCapitaMonthly)+' عدد/نفر/ماه × '+F.pct(A.packagedShare,0)+' بسته‌بندی × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره). سهم بازار استانی = فروش این نماینده ÷ همان بازار برآوردی (فرض بر این‌که فروش نمایندگان تماماً تخم‌مرغ بسته‌بندی است).'):(' برای «'+esc(p)+'» فرض مصرفی تعریف نشده، پس دو ستون آخر «قابل محاسبه نیست» است.');
     return H.panel('سهم هر نماینده ('+esc(mt.period.label)+')','جمعیت استان = جمعیت کل استانی که این نماینده در آن است. سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر. سهم از فروش همان استان = فروش این نماینده ÷ جمع فروش همه‌ی نمایندگان همان استان (وقتی چند نماینده در یک استان‌اند).'+marketNote,
       UI.table('rshareTbl_'+p,{cols:cols,rows:rows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')).includes(q),exportName:'rep-share-'+p,sort:['sc',-1],
-        footer:rs=>'<td colspan="4">جمع</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td><td></td><td></td>'})); });
+        footer:rs=>'<td colspan="4">جمع</td><td class="num">'+F.n(rs.reduce((s,r)=>s+r.cur,0))+'</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td><td></td><td></td>'})); });
 }};
 
 /* ---------- views/alerts-view.js ---------- */
