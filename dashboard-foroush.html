@@ -2232,18 +2232,34 @@ TVL.forecastMonthly = (function(){
 TVL.market = (function(){
   const C=TVL.config, D=TVL.data, NULLV=TVL.filters.NULLV;
   const POP=D.population, TOTAL=Object.values(POP).reduce((a,b)=>a+b,0);
-  function provinces(pm){
+  /* Provinces the Population tab excludes from its own view of the data (rows + every aggregate),
+     per request — not used by any other caller of provinces() (e.g. the Representatives-share tab
+     still sees تهران). */
+  const EXCLUDE_PROVINCES=new Set(['تهران']);
+  /* exclude: optional Set of province names to leave out of rows AND every aggregate below
+     (totalPop, coveredPop, nationalMarket, provinceCount, …) — scoped to whichever caller passes
+     it (currently only the Population tab, to drop تهران per request) so every other caller of
+     provinces() (e.g. the Representatives-share tab) keeps seeing the full, unfiltered picture. */
+  function provinces(pm,exclude){
     const A=C.market.assumptions[pm.product]||null; const nM=pm.period.nMonths;
-    const byProv=new Map(pm.dims.province.map(e=>[e.key,e])); const totalSales=pm.total.cur;
+    const byProv=new Map(pm.dims.province.map(e=>[e.key,e]));
     const unm=byProv.get(NULLV);
-    const rows=Object.keys(POP).map(p=>{ const e=byProv.get(p); const sales=e?e.cur:0, prev=e?e.prev:null; const pop=POP[p], popShare=pop/TOTAL;
+    const keys=exclude&&exclude.size?Object.keys(POP).filter(p=>!exclude.has(p)):Object.keys(POP);
+    const total=exclude&&exclude.size?keys.reduce((s,p)=>s+POP[p],0):TOTAL;
+    /* When excluding provinces, "فروش کل فیلتر" must mean the sum of what's actually still shown
+       (displayed provinces + unmapped) — never the true company-wide total with the excluded
+       province's real sales silently folded in — otherwise the reconciliation check below would
+       permanently flag a false "mismatch" purely because of this exclusion, not a real data bug. */
+    const rawSales=keys.map(p=>{ const e=byProv.get(p); return {p,sales:e?e.cur:0,prev:e?e.prev:null}; });
+    const totalSales=exclude&&exclude.size?(rawSales.reduce((s,x)=>s+x.sales,0)+(unm?unm.cur:0)):pm.total.cur;
+    const rows=rawSales.map(({p,sales,prev})=>{ const pop=POP[p], popShare=pop/total;
       const salesShare=totalSales>0?sales/totalSales:null; const idx=(salesShare!==null&&salesShare>0)?salesShare/popShare:null;
       const market=A?pop*A.perCapitaMonthly*nM*A.packagedShare:null; const share=(A&&market>0)?sales/market:null;
-      return {prov:p,pop,popShare,sales,prev,salesShare,perCapita:sales/(pop/100000),idx,market,share,hasRep:!!e&&e.visits>0,repCount:0}; }).sort((a,b)=>b.sales-a.sales||b.pop-a.pop);
+      return {prov:p,pop,popShare,sales,prev,salesShare,perCapita:sales/(pop/100000),idx,market,share,hasRep:!!byProv.get(p)&&byProv.get(p).visits>0,repCount:0}; }).sort((a,b)=>b.sales-a.sales||b.pop-a.pop);
     pm.dims.rep.forEach(r=>{ const row=rows.find(x=>x.prov===r.province); if(row&&r.visits>0) row.repCount++; });
     const covered=rows.filter(r=>r.hasRep); const coveredPop=covered.reduce((s,r)=>s+r.pop,0);
-    const nationalMarket=A?TOTAL*A.perCapitaMonthly*nM*A.packagedShare:null;
-    return {rows,unmapped:unm?{sales:unm.cur,share:totalSales>0?unm.cur/totalSales:null}:null,totalSales,assumption:A,nMonths:nM,totalPop:TOTAL,
+    const nationalMarket=A?total*A.perCapitaMonthly*nM*A.packagedShare:null;
+    return {rows,unmapped:unm?{sales:unm.cur,share:totalSales>0?unm.cur/totalSales:null}:null,totalSales,assumption:A,nMonths:nM,totalPop:total,
       coveredPop,coveredCount:covered.length,provinceCount:rows.length,nationalMarket,nationalShare:nationalMarket?totalSales/nationalMarket:null};
   }
   function reps(pm,mk){
@@ -2251,7 +2267,7 @@ TVL.market = (function(){
     return pm.dims.rep.map(r=>{ const pop=r.province?POP[r.province]:null; const market=(A&&pop)?pop*A.perCapitaMonthly*mk.nMonths*A.packagedShare:null;
       return Object.assign({},r,{pop,provShare:(r.province&&provTotal.get(r.province)>0)?r.cur/provTotal.get(r.province):null,market,mShare:market?r.cur/market:null}); });
   }
-  return {provinces,reps,POP,TOTAL};
+  return {provinces,reps,POP,TOTAL,EXCLUDE_PROVINCES};
 })();
 
 /* ---------- core/alerts.js ---------- */
@@ -3130,7 +3146,7 @@ function common(app){ const C=TVL.config,F=TVL.fmt;
 TVL.views.pop={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,esc=F.esc,C=TVL.config;
   return common(app)+H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
-    if(!H.hasData(pm)) return H.empty; const mk=TVL.market.provinces(pm); const A=mk.assumption;
+    if(!H.hasData(pm)) return H.empty; const mk=TVL.market.provinces(pm,TVL.market.EXCLUDE_PROVINCES); const A=mk.assumption;
     const NA_MKT='<span class="flat" title="برای این محصول فرض مصرف تعریف نشده است">قابل محاسبه نیست</span>';
     // Req #8 — mandatory reconciliation: province-mapped sales + unknown-province sales MUST equal the filtered company total.
     const mappedSum=mk.rows.reduce((s,r)=>s+r.sales,0); const unkSum=mk.unmapped?mk.unmapped.sales:0; const reconOk=Math.abs((mappedSum+unkSum)-mk.totalSales)<1e-6;
@@ -3167,7 +3183,7 @@ TVL.views.pop={render(app){
     const adv='<div class="note">این جدول برای تشخیص سریع «کجا نسبت به جمعیتش کم/زیاد می‌فروشید» است، نه سهم بازار واقعی؛ چون بدون فرض مصرف ساخته شده، محتاط بخوانیدش. فرمول: (سهم فروش استان) ÷ (سهم جمعیت استان). عدد بالای ۱ یعنی بیش از وزن جمعیتی‌اش می‌فروشید.</div>'
       +UI.table('popIdxTbl_'+p,{cols:[{key:'k',label:'استان',cell:r=>esc(r.prov)},{key:'ix',label:'شاخص نسبت به جمعیت'+T('CALCULATED'),num:true,sortVal:r=>r.idx,cell:r=>r.idx===null?'<span class="flat">قابل محاسبه نیست</span>':F.n(r.idx,2)+'×'}],rows:mk.rows,pageSize:0,exportName:'population-index-'+p,sort:['ix',-1]});
     return recon+'<div class="kpis">'+kp.map(x=>'<div class="kpi"><div class="l">'+x[0]+'</div><div class="v" style="font-size:'+(x[1].length>14?'17':'23')+'px">'+x[1]+'</div><div class="s">'+x[2]+'</div></div>').join('')+'</div>'
-      +H.panel('جدول استان‌ها بر پایه‌ی جمعیت','فروش واقعی از ردیف‌های تراکنشِ همین فیلتر مستقیماً به تفکیک استان جمع زده شده — عددی جز فروش واقعی نیست (نه سرانه، نه سهم بازار). استان‌هایی که در همین دوره/محصولِ فیلترشده فروشی ثبت نشده هم برای مقایسه آمده‌اند؛ این لزوماً به‌معنای نبودِ نماینده در آن استان نیست — ممکن است نماینده‌ی آن استان در این بازه‌ی زمانی/محصول هنوز فروشی ثبت نکرده باشد.'+(A?'':' برای این محصول، دو ستون آخر «قابل محاسبه نیست» است چون فرض مصرفی تعریف نشده.'),
+      +H.panel('جدول استان‌ها بر پایه‌ی جمعیت','فروش واقعی از ردیف‌های تراکنشِ همین فیلتر مستقیماً به تفکیک استان جمع زده شده — عددی جز فروش واقعی نیست (نه سرانه، نه سهم بازار). استان‌هایی که در همین دوره/محصولِ فیلترشده فروشی ثبت نشده هم برای مقایسه آمده‌اند؛ این لزوماً به‌معنای نبودِ نماینده در آن استان نیست — ممکن است نماینده‌ی آن استان در این بازه‌ی زمانی/محصول هنوز فروشی ثبت نکرده باشد. تهران طبق درخواست از این تب (جدول، جمع‌ها و بازار برآوردی) کنار گذاشته شده است.'+(A?'':' برای این محصول، دو ستون آخر «قابل محاسبه نیست» است چون فرض مصرفی تعریف نشده.'),
         UI.table('popTbl_'+p,{cols:cols,rows:mk.rows,pageSize:0,exportName:'population-share-'+p,sort:['s',-1],
           footer:rs=>'<td>'+(mk.unmapped?'نامشخص: '+F.n(mk.unmapped.sales)+' + ':'')+'جمع کشور</td><td class="num">'+F.n(mk.totalPop)+'</td><td class="num">۱۰۰٪</td><td class="num">'+F.n(mk.totalSales)+'</td><td class="num">۱۰۰٪</td><td></td>'+(A?'<td class="num">'+F.n(Math.round(mk.nationalMarket))+'</td><td class="num">'+F.pct(mk.nationalShare,2)+'</td>':'<td></td><td></td>')})
       +'<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:600;font-size:13px">تحلیل پیشرفته: شاخص نسبت به جمعیت (بدون فرض مصرف)</summary><div style="margin-top:10px">'+adv+'</div></details>'); });
