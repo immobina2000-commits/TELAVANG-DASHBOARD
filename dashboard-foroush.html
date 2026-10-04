@@ -1468,7 +1468,7 @@ TVL.forecast = (function(){
     const a=P.mStart(monthKey); if(cutoff<a) return null;
     const elapsed=P.workingDaysInRange(a,cutoff); if(elapsed<=0) return null;
     const totalW=P.workingDaysOfMonth(monthKey), sd=sumRange(recs,a,cutoff), avg=sd/elapsed;
-    return {id:'m1',name:'Run Rate روز فروش (Baseline)',forecast:avg*totalW,avgDaily:avg,elapsed,totalW,toDate:sd};
+    return {id:'m1',name:'میانگین فروش روزانه',forecast:avg*totalW,avgDaily:avg,elapsed,totalW,toDate:sd};
   }
 
   /* ---- Model 2 — Recent Weighted Average ----
@@ -1651,12 +1651,12 @@ TVL.forecast = (function(){
      fabricated statistical "accuracy %" (the brief explicitly forbids claiming one without a real
      statistical basis). */
   function confidenceLevel(evalResult,selection,completedMonths,nPoints){
-    if(!selection||completedMonths<C.thresholds.fcMinMonths) return {level:'Low',reason:'کمتر از یک ماه کامل برای Backtesting موجود است.'};
+    if(!selection||completedMonths<C.thresholds.fcMinMonths) return {level:'Low',reason:'کمتر از یک ماه کامل سابقه برای ارزیابی موجود است.'};
     const wape=selection.type==='single'?selection.model.wape:null;
     if(nPoints>=4&&completedMonths>=C.thresholds.fcMinMonthsRich&&(wape===null||wape<=0.15))
-      return {level:'High',reason:'داده کافی ('+completedMonths+' ماه کامل، '+nPoints+' نقطه‌ی Backtest) و خطای تاریخی مدل پایین است (WAPE'+(wape!==null?' ≈ '+F.pct(wape,0):' نامشخص')+').'};
-    if(nPoints>=2&&completedMonths>=C.thresholds.fcMinMonths) return {level:'Medium',reason:'داده قابل‌قبول است اما نوسان/خطای Backtest متوسط دارد ('+nPoints+' نقطه‌ی Backtest).'};
-    return {level:'Low',reason:'داده کافی برای ارزیابی مطمئن مدل وجود ندارد ('+nPoints+' نقطه‌ی Backtest).'};
+      return {level:'High',reason:'داده کافی ('+completedMonths+' ماه کامل، '+nPoints+' نقطه‌ی ارزیابی) و دقت مدل روی داده‌ی گذشته خوب است'+(wape!==null?(' (≈'+F.pct(wape,0)+' خطا)'):'')+'.'};
+    if(nPoints>=2&&completedMonths>=C.thresholds.fcMinMonths) return {level:'Medium',reason:'داده قابل‌قبول است اما نوسان/خطای این مدل روی گذشته متوسط است ('+nPoints+' نقطه‌ی ارزیابی).'};
+    return {level:'Low',reason:'داده کافی برای ارزیابی مطمئن مدل وجود ندارد ('+nPoints+' نقطه‌ی ارزیابی).'};
   }
 
   /* ---- Turn a Backtest-chosen model/ensemble into an actually-usable LIVE forecast ----
@@ -1671,13 +1671,13 @@ TVL.forecast = (function(){
       const avail=selection.models.filter(m=>liveModels.some(x=>x.id===m.id));
       if(avail.length===selection.models.length){
         let f=0,wtot=0; avail.forEach(m=>{ const r=liveModels.find(x=>x.id===m.id); f+=selection.weights[m.id]*r.forecast; wtot+=selection.weights[m.id]; });
-        return {point:f/wtot,name:'ترکیبی (Ensemble: '+avail.map(m=>m.name).join(' + ')+')',residualSelection:selection,downgraded:false};
+        return {point:f/wtot,name:'ترکیبی ('+avail.map(m=>m.name).join(' + ')+')',residualSelection:selection,downgraded:false};
       }
       if(avail.length){
         const invW=avail.map(m=>selection.weights[m.id]), wtot0=invW.reduce((x,y)=>x+y,0), weights={};
         avail.forEach((m,i)=>weights[m.id]=invW[i]/wtot0);
         let f=0; avail.forEach(m=>{ f+=weights[m.id]*liveModels.find(x=>x.id===m.id).forecast; });
-        return {point:f,name:'ترکیبی محدودشده (Ensemble: '+avail.map(m=>m.name).join(' + ')+' — بخشی از اجزای اصلی در این مقطع از ماه قابل‌اجرا نبودند)',residualSelection:{type:'ensemble',models:avail,weights},downgraded:true};
+        return {point:f,name:'ترکیبی محدودشده ('+avail.map(m=>m.name).join(' + ')+' — بخشی از اجزای اصلی در این مقطع از ماه قابل‌اجرا نبودند)',residualSelection:{type:'ensemble',models:avail,weights},downgraded:true};
       }
     } else if(selection&&selection.type==='single'){
       const r=liveModels.find(x=>x.id===selection.model.id);
@@ -1685,8 +1685,8 @@ TVL.forecast = (function(){
     }
     const ranked=(evalResult?evalResult.models:[]).slice().sort((a,b)=>(a.mase!=null?a.mase:(a.wape!=null?a.wape:Infinity))-(b.mase!=null?b.mase:(b.wape!=null?b.wape:Infinity)));
     for(const m of ranked){ const r=liveModels.find(x=>x.id===m.id); if(r) return {point:r.forecast,
-      name:m.name+' (مدل منتخب اصلی برای این مقطع از ماه قابل‌اجرا نبود؛ بهترین جایگزین طبق Backtest استفاده شد)',residualSelection:{type:'single',model:m},downgraded:true}; }
-    return {point:baseline.forecast,name:'Run Rate روز فروش (Baseline — هیچ مدل پیشرفته‌ای برای این مقطع از ماه قابل‌اجرا نبود)',residualSelection:null,downgraded:true};
+      name:m.name+' (روش منتخب اصلی برای این مقطع از ماه قابل‌اجرا نبود؛ بهترین جایگزین طبق ارزیابی روی گذشته استفاده شد)',residualSelection:{type:'single',model:m},downgraded:true}; }
+    return {point:baseline.forecast,name:'میانگین روزانه (هیچ روش پیشرفته‌ای برای این مقطع از ماه قابل‌اجرا نبود)',residualSelection:null,downgraded:true};
   }
 
   /* ---- One entity's (Total, or one representative's) full forecast pipeline ---- */
@@ -1698,7 +1698,7 @@ TVL.forecast = (function(){
     if(completedMonths.length<C.thresholds.fcMinMonths||dataSample<C.thresholds.fcMinSample){
       return {insufficient:false,fallback:true,targetMonthKey,cutoff,totalW:baseline.totalW,elapsed:baseline.elapsed,toDate:baseline.toDate,
         point:baseline.forecast,lower:baseline.forecast*0.8,upper:baseline.forecast*1.2,
-        chosenModel:'Run Rate روز فروش (Fallback — داده برای Backtest کافی نیست)',
+        chosenModel:'میانگین روزانه (داده برای ارزیابی کافی نیست)',
         confidence:{level:'Low',reason:'کمتر از '+C.thresholds.fcMinMonths+' ماه کامل یا کمتر از '+C.thresholds.fcMinSample+' رکورد تاریخی موجود است؛ فقط مدل پایه استفاده شد.'},
         baseline:baseline.forecast,advanced:baseline.forecast,backtestPoints:0,completedMonths:completedMonths.length,evalResult:null,selection:null,intervalMethod:'fallback-±20%'};
     }
@@ -2081,12 +2081,12 @@ TVL.forecastMonthly = (function(){
   }
 
   function confidenceLevel(monthsLen,nonZeroMonths,chosen,volatilityCv){
-    if(monthsLen<2) return {level:'Low',reason:'فقط '+monthsLen+' ماه سابقه موجود است؛ هر Forecast روی این حجم داده نامطمئن است.'};
+    if(monthsLen<2) return {level:'Low',reason:'فقط '+monthsLen+' ماه سابقه موجود است؛ هر پیش‌بینی روی این حجم داده نامطمئن است.'};
     const wape=chosen&&chosen.m?chosen.m.wape:null, n=chosen&&chosen.m?chosen.m.n:0;
     if(monthsLen>=5&&n>=3&&wape!==null&&wape<=0.20&&(volatilityCv===null||volatilityCv<=1.2))
-      return {level:'High',reason:monthsLen+' ماه سابقه، '+n+' نقطه‌ی Backtest، خطای تاریخی مدل پایین (WAPE ≈ '+F.pct(wape,0)+').'};
-    if(monthsLen>=3&&(n>=1||nonZeroMonths>=2)) return {level:'Medium',reason:monthsLen+' ماه سابقه'+(n?('، '+n+' نقطه‌ی Backtest'):'')+'؛ داده قابل‌قبول اما محدود است.'};
-    return {level:'Low',reason:monthsLen+' ماه سابقه'+(n?('، '+n+' نقطه‌ی Backtest'):'، بدون نقطه‌ی قابل Backtest')+'؛ عدم‌قطعیت بالاست.'};
+      return {level:'High',reason:monthsLen+' ماه سابقه، '+n+' نقطه‌ی ارزیابی، دقت مدل روی داده‌ی گذشته خوب (≈'+F.pct(wape,0)+' خطا).'};
+    if(monthsLen>=3&&(n>=1||nonZeroMonths>=2)) return {level:'Medium',reason:monthsLen+' ماه سابقه'+(n?('، '+n+' نقطه‌ی ارزیابی'):'')+'؛ داده قابل‌قبول اما محدود است.'};
+    return {level:'Low',reason:monthsLen+' ماه سابقه'+(n?('، '+n+' نقطه‌ی ارزیابی'):'، بدون نقطه‌ی قابل ارزیابی')+'؛ عدم‌قطعیت بالاست.'};
   }
 
   /* ---- One entity's (one representative, or the network total) full pipeline for ONE product ---- */
@@ -2120,8 +2120,8 @@ TVL.forecastMonthly = (function(){
     const conf=confidenceLevel(s.values.length,nonZero,chosen,volatilityCv);
     const recentAvg=s.values.slice(-Math.min(2,s.values.length)).reduce((a,b)=>a+b,0)/Math.min(2,s.values.length);
     explain = chosen
-      ? ('Forecast بر اساس «'+modelName+'» که در Backtesting روی '+chosen.m.n+' نقطه‌ی تاریخی، کمترین خطا (WAPE ≈ '+(chosen.m.wape!==null?F.pct(chosen.m.wape,0):'نامشخص')+') را در میان '+Object.keys(bt).length+' مدل/حالتِ بررسی‌شده داشته است'+(trend.label!=='نامشخص'?('؛ روند تاریخی این موجودیت '+trend.label+' است'):'')+(season.label==='الگوی فصلی دیده می‌شود'?('؛ همچنین یک الگوی فصلی واقعی تشخیص داده شد ('+season.reason+')'):'')+'.')
-      : ('داده برای Backtesting واقعی کافی نیست (فقط '+s.values.length+' ماه سابقه)؛ Forecast بر پایه‌ی میانگین همان سابقه‌ی محدود است و باید محتاطانه تفسیر شود.');
+      ? ('پیش‌بینی بر اساس روش «'+modelName+'» که در ارزیابی روی '+chosen.m.n+' نقطه‌ی تاریخی، کمترین خطا (≈'+(chosen.m.wape!==null?F.pct(chosen.m.wape,0):'نامشخص')+') را در میان '+Object.keys(bt).length+' روش/حالتِ بررسی‌شده داشته است'+(trend.label!=='نامشخص'?('؛ روند تاریخی این موجودیت '+trend.label+' است'):'')+(season.label==='الگوی فصلی دیده می‌شود'?('؛ همچنین یک الگوی فصلی واقعی تشخیص داده شد ('+season.reason+')'):'')+'.')
+      : ('داده برای ارزیابی واقعی کافی نیست (فقط '+s.values.length+' ماه سابقه)؛ پیش‌بینی بر پایه‌ی میانگین همان سابقه‌ی محدود است و باید محتاطانه تفسیر شود.');
     return {status:'Forecasted',point,lower:iv.lower,upper:iv.upper,intervalMethod:iv.method,
       model:modelName,modelId:chosen?chosen.modelId:'mean_fallback',variant:chosen?chosen.variant:'raw',
       backtest:chosen?chosen.m:null,candidatesEvaluated:Object.keys(bt).length,
@@ -2160,7 +2160,7 @@ TVL.forecastMonthly = (function(){
         :completedMonthKeys;
       perProductTotal[p]=forecastEntityProduct(totalRecs,totalMonthKeys);
       perProductTotal[p].usedExtendedHistory=useHist;
-      if(useHist){ const yr=TVL.historical.yearRange(p); perProductTotal[p].extendedHistoryNote='این Forecast، علاوه بر '+completedMonthKeys.length+' ماه کامل داده‌ی تفصیلیِ نمایندگان، از سابقه‌ی تاریخیِ کل شبکه (سال '+F.n(yr.min)+' تا '+F.n(yr.max)+') نیز استفاده کرده — فقط برای این عدد «کل شبکه»، نه برای هیچ‌کدام از نمایندگان.'; }
+      if(useHist){ const yr=TVL.historical.yearRange(p); perProductTotal[p].extendedHistoryNote='این پیش‌بینی، علاوه بر '+completedMonthKeys.length+' ماه کامل داده‌ی تفصیلیِ نمایندگان، از سابقه‌ی تاریخیِ کل شبکه (سال '+F.n(yr.min)+' تا '+F.n(yr.max)+') نیز استفاده کرده — فقط برای این عدد «کل شبکه»، نه برای هیچ‌کدام از نمایندگان.'; }
       perProductRepResults[p]=new Map();
       repNames.forEach(name=>{ perProductRepResults[p].set(name,forecastEntityProduct(base[p].filter(r=>r.representative===name),completedMonthKeys)); });
     });
@@ -2201,9 +2201,9 @@ TVL.forecastMonthly = (function(){
       }
       const sumRepsMetrics=metrics(sumRepsErrs,sumRepsActuals);
       const directMetrics=direct.backtest;
-      let recommendation='sum', recommendReason='طبق روش پیش‌فرض گزارش مدیریتی، Σ پیش‌بینی نمایندگان به‌عنوان Forecast عملیاتی شبکه در نظر گرفته می‌شود.';
+      let recommendation='sum', recommendReason='طبق روش پیش‌فرض گزارش مدیریتی، جمع پیش‌بینی نمایندگان به‌عنوان عدد عملیاتی شبکه در نظر گرفته می‌شود.';
       if(directMetrics&&directMetrics.wape!==null&&(!sumRepsMetrics||sumRepsMetrics.wape===null||directMetrics.wape<sumRepsMetrics.wape*0.8)){
-        recommendation='direct'; recommendReason='در Backtesting، Forecast مستقیم سطح شبکه خطای به‌روشنی پایین‌تری نسبت به Σ نمایندگان داشت (WAPE '+F.pct(directMetrics.wape,0)+' در برابر '+(sumRepsMetrics&&sumRepsMetrics.wape!==null?F.pct(sumRepsMetrics.wape,0):'نامشخص')+')؛ بنابراین برای این محصول روش مستقیم پیشنهاد می‌شود.';
+        recommendation='direct'; recommendReason='در ارزیابی روی داده‌ی گذشته، برآورد مستقیم کل شبکه خطای به‌روشنی پایین‌تری نسبت به جمع نمایندگان داشت (≈'+F.pct(directMetrics.wape,0)+' در برابر '+(sumRepsMetrics&&sumRepsMetrics.wape!==null?F.pct(sumRepsMetrics.wape,0):'نامشخص')+')؛ بنابراین برای این محصول روش مستقیم پیشنهاد می‌شود.';
       }
       network[p]={direct,sumReps,diff:direct.status==='Forecasted'?direct.point-sumReps:null,sumRepsBacktest:sumRepsMetrics,directBacktest:directMetrics,recommendation,recommendReason};
     });
@@ -3201,6 +3201,12 @@ TVL.views.forecast={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,C=TVL.config,esc=F.esc,J=TVL.jalali,P=TVL.period,FC=TVL.forecast,U=C.measure.unit;
   const CONF_CLS={High:'pos',Medium:'med',Low:'low'};
   const confBadge=lv=>'<span class="tag t-'+(CONF_CLS[lv]||'low')+'">'+(lv==='High'?'بالا':lv==='Medium'?'متوسط':'پایین')+'</span>';
+  /* Plain-language stand-in for a raw WAPE %, for anywhere a manager would see it without
+     wanting the statistic itself — the number is still shown as small secondary text, never
+     hidden, just not the headline. Thresholds mirror the ones TVL.forecast(Monthly) already use
+     to decide Confidence, so this label never contradicts the Confidence badge next to it. */
+  const wapeWord=w=>w===null||w===undefined?null:(w<=0.15?'خوب':w<=0.30?'متوسط':'نامطمئن');
+  const wapeTag=w=>{ const word=wapeWord(w); if(!word) return '<span class="flat">—</span>'; return '<span class="tag t-'+(word==='خوب'?'pos':word==='متوسط'?'med':'low')+'">'+word+'</span>'; };
   const U_small=' <small>'+U+'</small>';
 
   /* daily actual map for one (product, representative|null) scope, honouring current filters */
@@ -3238,85 +3244,84 @@ TVL.views.forecast={render(app){
     const prevGrowth=fc.prevFull!==null&&fc.prevFull>0?t.point/fc.prevFull-1:null;
     const cards=[];
     cards.push(TVL.kpi.card({label:'فروش واقعی تا امروز',raw:F.n(t.toDate)+U_small,extra:'از ابتدای '+F.monthLabel(J.fromMonthKey(t.targetMonthKey).y,J.fromMonthKey(t.targetMonthKey).m)+' تا '+F.dateLong(t.cutoff)}));
-    cards.push(TVL.kpi.card({label:'پیش‌بینی پایان ماه',raw:'<b>'+F.n(t.point)+'</b>'+U_small,extra:'بازه: '+F.n(t.lower)+' تا '+F.n(t.upper),tag:t.fallback?'ESTIMATE':undefined}));
-    cards.push(TVL.kpi.card({label:'فروش مورد انتظار باقی‌مانده',raw:F.n(remaining)+U_small,extra:'تا پایان ماه'}));
+    cards.push(TVL.kpi.card({label:'پیش‌بینی پایان ماه',raw:'<b>'+F.n(t.point)+'</b>'+U_small,extra:'بازه‌ی محتمل: '+F.n(t.lower)+' تا '+F.n(t.upper)}));
+    cards.push(TVL.kpi.card({label:'فروش باقی‌مانده تا پایان ماه',raw:F.n(remaining)+U_small}));
     cards.push(TVL.kpi.card({label:'روز فروش سپری‌شده / باقی‌مانده',raw:F.n(t.elapsed)+' / '+F.n(Math.max(0,t.totalW-t.elapsed)),extra:'از '+F.n(t.totalW)+' روز فروش کل ماه'}));
-    cards.push(TVL.kpi.card({label:'میانگین فروش روزانه (واقعی)',raw:F.n(t.elapsed?t.toDate/t.elapsed:0)+U_small}));
-    cards.push(TVL.kpi.card({label:'میانگین روزانه موردنیاز برای Forecast',raw:requiredPace===null?'<span class="flat">—</span>':F.n(requiredPace)+U_small,extra:'برای رسیدن به پیش‌بینی پایان ماه'}));
-    cards.push(TVL.kpi.card({label:'رشد پیش‌بینی نسبت به ماه قبل',raw:prevGrowth===null?'<span class="flat">داده کافی نیست</span>':'<span class="'+F.cls(prevGrowth)+'">'+F.sgn(prevGrowth)+'</span>',extra:fc.prevFull!==null?'ماه قبل (واقعی): '+F.n(fc.prevFull)+U_small:'ماه قبل کامل در داده نیست'}));
-    cards.push(TVL.kpi.card({label:'سطح اطمینان Forecast',raw:confBadge(t.confidence.level),extra:t.confidence.reason}));
-    cards.push(TVL.kpi.card({label:'خطای تاریخی مدل (WAPE)',raw:(t.evalResult&&t.selection&&t.selection.type==='single'&&t.selection.model.wape!==null)?F.pct(t.selection.model.wape,0):(t.backtestPoints?'<span class="flat">نامشخص</span>':'<span class="flat">Backtest ممکن نشد</span>'),extra:F.n(t.backtestPoints)+' نقطه‌ی Backtest'}));
+    cards.push(TVL.kpi.card({label:'میانگین فروش روزانه (تا امروز)',raw:F.n(t.elapsed?t.toDate/t.elapsed:0)+U_small}));
+    cards.push(TVL.kpi.card({label:'میانگین روزانه‌ی لازم برای رسیدن به پیش‌بینی',raw:requiredPace===null?'<span class="flat">—</span>':F.n(requiredPace)+U_small}));
+    cards.push(TVL.kpi.card({label:'رشد نسبت به ماه قبل',raw:prevGrowth===null?'<span class="flat">داده کافی نیست</span>':'<span class="'+F.cls(prevGrowth)+'">'+F.sgn(prevGrowth)+'</span>',extra:fc.prevFull!==null?'ماه قبل (واقعی): '+F.n(fc.prevFull)+U_small:'ماه قبل کامل در داده نیست'}));
+    cards.push(TVL.kpi.card({label:'میزان اطمینان به این پیش‌بینی',raw:confBadge(t.confidence.level),extra:t.confidence.reason}));
+    cards.push(TVL.kpi.card({label:'دقت مدل بر اساس داده‌ی گذشته',raw:(t.evalResult&&t.selection&&t.selection.type==='single'&&t.selection.model.wape!==null)?wapeTag(t.selection.model.wape):(t.backtestPoints?'<span class="flat">نامشخص</span>':'<span class="flat">ارزیابی ممکن نشد</span>'),extra:t.backtestPoints?('سنجیده‌شده روی '+F.n(t.backtestPoints)+' نقطه‌ی تاریخی'):''}));
     return '<div class="kpis">'+cards.join('')+'</div>';
   }
 
   function scenarioTable(t){
     if(t.insufficient) return '';
     return '<table><thead><tr><th>سناریو</th><th class="num">پیش‌بینی پایان ماه</th></tr></thead><tbody>'
-      +'<tr><td>محافظه‌کارانه (Lower Bound)</td><td class="num">'+F.n(t.lower)+'</td></tr>'
-      +'<tr class="total"><td>محتمل (Point Forecast)</td><td class="num"><b>'+F.n(t.point)+'</b></td></tr>'
-      +'<tr><td>خوش‌بینانه (Upper Bound)</td><td class="num">'+F.n(t.upper)+'</td></tr></tbody></table>';
+      +'<tr><td>محافظه‌کارانه</td><td class="num">'+F.n(t.lower)+'</td></tr>'
+      +'<tr class="total"><td>محتمل‌ترین</td><td class="num"><b>'+F.n(t.point)+'</b></td></tr>'
+      +'<tr><td>خوش‌بینانه</td><td class="num">'+F.n(t.upper)+'</td></tr></tbody></table>';
   }
 
   function baselineVsAdvanced(t){
     if(t.insufficient) return '';
     const diff=t.advanced-t.baseline, pct=t.baseline>0?diff/t.baseline:null;
-    return '<div class="kpis"><div class="kpi"><div class="l">Baseline Forecast <span class="tag t-med" title="میانگین ساده‌ی فروش هر روز فروش × روزهای فروش ماه">ESTIMATE</span></div><div class="v">'+F.n(t.baseline)+U_small+'</div>'
-      +'<div class="s">Run Rate ساده (حفظ‌شده، هرگز حذف نمی‌شود)</div></div>'
-      +'<div class="kpi" style="border-top-color:var(--teal)"><div class="l">Advanced Forecast ('+esc(t.chosenModel)+')</div><div class="v"><b>'+F.n(t.advanced)+'</b>'+U_small+'</div>'
-      +'<div class="d">'+(pct===null?'<span class="flat">—</span>':'<span class="'+F.cls(diff)+'">'+F.sgnN(diff)+'</span> ('+F.sgn(pct)+' نسبت به Baseline)')+'</div></div></div>';
+    return '<div class="kpis"><div class="kpi"><div class="l">پیش‌بینی ساده (میانگین روزانه)</div><div class="v">'+F.n(t.baseline)+U_small+'</div>'
+      +'<div class="s">همیشه کنار پیش‌بینی هوشمند نمایش داده می‌شود تا تفاوت مشخص باشد.</div></div>'
+      +'<div class="kpi" style="border-top-color:var(--teal)"><div class="l">پیش‌بینی هوشمند (منتخب)</div><div class="v"><b>'+F.n(t.advanced)+'</b>'+U_small+'</div>'
+      +'<div class="d">'+(pct===null?'<span class="flat">—</span>':'<span class="'+F.cls(diff)+'">'+F.sgnN(diff)+'</span> ('+F.sgn(pct)+' نسبت به حالت ساده)')+'</div></div></div>';
   }
 
   function methodology(fc,p){
     const t=fc.total;
     if(t.insufficient) return '<div class="note">'+esc(t.reason)+'</div>';
     const rows=[
-      ['آخرین تاریخ داده (Data Cutoff)',F.dateLong(t.cutoff)],
-      ['تعداد ماه‌های تاریخی استفاده‌شده',F.n(t.completedMonths)+' ماه کامل'],
-      ['تعداد روزهای فروش سپری‌شده / کل ماه',F.n(t.elapsed)+' / '+F.n(t.totalW)],
-      ['مدل‌های بررسی‌شده','Run Rate، میانگین وزنی روزهای اخیر، الگوی روز هفته، روند، الگوی درون‌ماهی تاریخی'+(t.evalResult?' ('+F.n(t.evalResult.models.length)+' مدل در این بازه قابل‌اجرا بود)':'')],
-      ['مدل/ترکیب انتخاب‌شده',esc(t.chosenModel)],
-      ['معیار انتخاب مدل','کمترین MASE (یا WAPE در نبود مقیاس MASE) روی '+F.n(t.backtestPoints)+' نقطه‌ی Rolling-Origin Backtest'],
-      ['خطای Backtest مدل منتخب',(t.selection&&t.selection.type==='single'&&t.selection.model.wape!==null)?('WAPE ≈ '+F.pct(t.selection.model.wape,0)+' ، MAE ≈ '+F.n(t.selection.model.mae)+' '+U):(t.selection&&t.selection.type==='ensemble'?('MAE ترکیبی ≈ '+F.n(t.selection.mae)+' '+U):'داده کافی برای این معیار نیست')],
-      ['روش ساخت Prediction Interval',t.intervalMethod||'—'],
-      ['برخورد با روزهای جاافتاده (Missing)','روز بدون هیچ رکوردی هرگز صفر فرض نمی‌شود؛ فقط در جمع (که به‌طور طبیعی صفر اضافه می‌کند) اثر دارد و در میانگین‌های روز-هفته/روند از نمونه کنار گذاشته می‌شود.'],
-      ['برخورد با مقادیر پرت (Outlier)','مدل‌ها روی مقادیر خام Backtest و اجرا می‌شوند (Raw)؛ اگر مقداری در «هشدارهای Forecast» به‌عنوان جهش/افت غیرعادی علامت خورده، همان‌جا گزارش شده، نه حذف‌شده.'],
-      ['برخورد با جمعه/تعطیلات','جمعه طبق تنظیمات مرکزی داشبورد (TVL.config.workingWeekdays) همیشه روز غیر-فروش است و وارد هیچ محاسبه‌ای نمی‌شود؛ تعطیلی دیگری در داده مشخص نشده است.'],
+      ['آخرین داده موجود',F.dateLong(t.cutoff)],
+      ['سابقه‌ی استفاده‌شده',F.n(t.completedMonths)+' ماه کامل'],
+      ['روزهای فروش سپری‌شده / کل ماه',F.n(t.elapsed)+' / '+F.n(t.totalW)],
+      ['روش‌های بررسی‌شده','میانگین‌گیری ساده، میانگین وزنی روزهای اخیر، الگوی روز هفته، روند، الگوی درون‌ماهی تاریخی'+(t.evalResult?' ('+F.n(t.evalResult.models.length)+' روش در این بازه قابل‌اجرا بود)':'')],
+      ['روش نهایی انتخاب‌شده',esc(t.chosenModel)],
+      ['معیار انتخاب','روشی که روی داده‌ی واقعی گذشته کمترین خطا را داشته (بر پایه‌ی '+F.n(t.backtestPoints)+' نقطه‌ی تاریخی)'],
+      ['دقت روش منتخب روی داده‌ی گذشته',(t.selection&&t.selection.type==='single'&&t.selection.model.wape!==null)?(wapeWord(t.selection.model.wape)+' (خطای میانگین ≈ '+F.pct(t.selection.model.wape,0)+')'):(t.selection&&t.selection.type==='ensemble'?'ترکیبی از چند روش':'داده کافی برای این سنجش نیست')],
+      ['برخورد با روزهای جاافتاده','روز بدون هیچ رکوردی هرگز صفر فرض نمی‌شود؛ فقط در جمع کل (که به‌طور طبیعی صفر اضافه می‌کند) اثر دارد.'],
+      ['برخورد با مقادیر غیرعادی','مقادیر پرت حذف نمی‌شوند؛ اگر روزی غیرعادی باشد، در «هشدارهای پیش‌بینی» همان‌جا گزارش می‌شود، نه حذف.'],
+      ['برخورد با جمعه/تعطیلات','جمعه طبق تقویم کاری داشبورد همیشه روز غیر-فروش است و وارد هیچ محاسبه‌ای نمی‌شود.'],
       ['زمان آخرین محاسبه',F.dateTime(Date.now())]
     ];
-    return '<table><tbody>'+rows.map(r=>'<tr><td style="white-space:nowrap;font-weight:600;vertical-align:top">'+esc(r[0])+'</td><td style="white-space:normal">'+r[1]+'</td></tr>').join('')+'</tbody></table>';
+    return '<details><summary style="cursor:pointer;font-weight:700;padding:4px 0">روش محاسبه (برای تحلیلگر)</summary><div style="margin-top:10px"><table><tbody>'+rows.map(r=>'<tr><td style="white-space:nowrap;font-weight:600;vertical-align:top">'+esc(r[0])+'</td><td style="white-space:normal">'+r[1]+'</td></tr>').join('')+'</tbody></table></div></details>';
   }
 
   function diagnostics(fc){
     const t=fc.total;
     const modelsTbl=(t.evalResult&&t.evalResult.models.length)?('<table><thead><tr><th>مدل</th><th class="num">MAE</th><th class="num">RMSE</th><th class="num">WAPE</th><th class="num">MASE</th><th class="num">تعداد Backtest</th></tr></thead><tbody>'
-      +t.evalResult.models.slice().sort((a,b)=>(a.mase!==null?a.mase:a.wape)-(b.mase!==null?b.mase:b.wape)).map(m=>'<tr><td>'+esc(m.name)+(t.selection&&((t.selection.type==='single'&&t.selection.model.id===m.id)||(t.selection.type==='ensemble'&&t.selection.models.some(x=>x.id===m.id)))?' <span class="tag t-pos">انتخاب‌شده</span>':'')+'</td><td class="num">'+F.n(m.mae)+'</td><td class="num">'+F.n(m.rmse)+'</td><td class="num">'+(m.wape!==null?F.pct(m.wape,1):'—')+'</td><td class="num">'+(m.mase!==null?F.n(m.mase,2):'—')+'</td><td class="num">'+F.n(m.n)+'</td></tr>').join('')+'</tbody></table>'):'<div class="empty">Backtest برای این فیلتر اجرا نشد (داده ناکافی).</div>';
-    const ensembleNote=(t.selection&&t.selection.type==='ensemble')?('<p class="sub">وزن Ensemble: '+Object.entries(t.selection.weights).map(([id,w])=>id+' = '+F.pct(w,0)).join('، ')+'</p>'):'';
+      +t.evalResult.models.slice().sort((a,b)=>(a.mase!==null?a.mase:a.wape)-(b.mase!==null?b.mase:b.wape)).map(m=>'<tr><td>'+esc(m.name)+(t.selection&&((t.selection.type==='single'&&t.selection.model.id===m.id)||(t.selection.type==='ensemble'&&t.selection.models.some(x=>x.id===m.id)))?' <span class="tag t-pos">انتخاب‌شده</span>':'')+'</td><td class="num">'+F.n(m.mae)+'</td><td class="num">'+F.n(m.rmse)+'</td><td class="num">'+(m.wape!==null?F.pct(m.wape,1):'—')+'</td><td class="num">'+(m.mase!==null?F.n(m.mase,2):'—')+'</td><td class="num">'+F.n(m.n)+'</td></tr>').join('')+'</tbody></table>'):'<div class="empty">ارزیابی برای این فیلتر اجرا نشد (داده ناکافی).</div>';
+    const ensembleNote=(t.selection&&t.selection.type==='ensemble')?('<p class="sub">وزن ترکیب: '+Object.entries(t.selection.weights).map(([id,w])=>id+' = '+F.pct(w,0)).join('، ')+'</p>'):'';
     return '<details><summary style="cursor:pointer;font-weight:700;padding:4px 0">جزئیات مدل و ارزیابی (برای تحلیلگر)</summary><div style="margin-top:10px">'
-      +'<p class="sub">Candidate Models و خطای هرکدام روی نقاط Backtest (Rolling-Origin، بدون نشت داده از ماه/روزهای آینده):</p>'+modelsTbl+ensembleNote
-      +'<p class="sub">کفایت داده: '+F.n(t.completedMonths)+' ماه کامل، '+F.n(t.backtestPoints)+' نقطه‌ی Backtest، سطح اطمینان: '+confBadge(t.confidence.level)+' — '+esc(t.confidence.reason)+'</p>'
+      +'<p class="sub">روش‌های بررسی‌شده و خطای هرکدام روی داده‌ی واقعی گذشته (بدون نشت داده از آینده):</p>'+modelsTbl+ensembleNote
+      +'<p class="sub">کفایت داده: '+F.n(t.completedMonths)+' ماه کامل، '+F.n(t.backtestPoints)+' نقطه‌ی ارزیابی، سطح اطمینان: '+confBadge(t.confidence.level)+' — '+esc(t.confidence.reason)+'</p>'
       +'</div></details>';
   }
 
   function consistencyPanel(fc){
     const c=fc.consistency; if(c.total===null) return '';
     const ok=Math.abs(c.diff)<=Math.max(1,c.total*0.02);
-    return '<div class="note'+(ok?'':' warn')+'"><b>Forecast کل (مستقل):</b> '+F.n(c.total)+' '+U+' &nbsp; <b>Σ Forecast نمایندگان:</b> '+F.n(c.sumReps)+' '+U+' &nbsp; <b>اختلاف:</b> '+F.sgnN(c.diff)+' '+U+' ('+(c.total?F.pct(c.diff/c.total,1):'—')+')'
-      +'<br>'+(ok?'اختلاف ناچیز است؛ دو سطح عملاً هم‌خوان‌اند.':'Forecast کل با Backtesting مستقل در سطح کل محاسبه می‌شود (معمولاً دقیق‌تر از جمع مدل‌های جداگانه‌ی هر نماینده)، نه با جمع کردن Forecast نمایندگان؛ اختلاف بالا طبیعی وقتی مدل‌های سطح کل و سطح نماینده متفاوت انتخاب شده‌اند و نشانه‌ی خطا نیست.')+'</div>';
+    return '<div class="note'+(ok?'':' warn')+'"><b>پیش‌بینی کل (محاسبه‌ی مستقیم):</b> '+F.n(c.total)+' '+U+' &nbsp; <b>جمع پیش‌بینی نمایندگان:</b> '+F.n(c.sumReps)+' '+U+' &nbsp; <b>اختلاف:</b> '+F.sgnN(c.diff)+' '+U+' ('+(c.total?F.pct(c.diff/c.total,1):'—')+')'
+      +'<br>'+(ok?'اختلاف ناچیز است؛ دو عدد عملاً هم‌خوان‌اند.':'پیش‌بینی کل به‌طور مستقل محاسبه می‌شود (معمولاً دقیق‌تر از جمع‌زدن پیش‌بینی تک‌تک نمایندگان)، نه با جمع کردن آن‌ها؛ اختلاف در این حد طبیعی است و نشانه‌ی خطا نیست.')+'</div>';
   }
 
   function riskAlerts(fc){
     const risky=[];
     fc.reps.forEach(r=>{
       if(r.insufficient) return;
-      if(r.fallback) risky.push({r,why:'داده‌ی تاریخی کافی برای Backtest و مدل پیشرفته نیست؛ فقط Run Rate ساده (Fallback) محاسبه شده.'});
-      else if(r.confidence.level==='Low') risky.push({r,why:'سطح اطمینان Forecast این نماینده پایین است: '+r.confidence.reason});
+      if(r.fallback) risky.push({r,why:'سابقه‌ی تاریخی کافی برای تحلیل پیشرفته نیست؛ فقط یک پیش‌بینی ساده محاسبه شده.'});
+      else if(r.confidence.level==='Low') risky.push({r,why:'میزان اطمینان این پیش‌بینی پایین است: '+r.confidence.reason});
       const m1=r.models&&r.models.find(x=>x.id==='m1'), m2=r.models&&r.models.find(x=>x.id==='m2');
       if(m1&&m2&&m1.avgDaily>0&&m2.avgDaily<m1.avgDaily*0.65) risky.push({r,why:'سرعت فروش روزهای اخیر ('+F.n(Math.round(m2.avgDaily))+' '+U+'/روز) به‌روشنی از میانگین کل ماه ('+F.n(Math.round(m1.avgDaily))+' '+U+'/روز) کمتر است.'});
-      if(!r.fallback&&r.baseline>0&&Math.abs(r.advanced-r.baseline)/r.baseline>0.35) risky.push({r,why:'Forecast پیشرفته ('+F.n(Math.round(r.advanced))+') با Baseline ساده ('+F.n(Math.round(r.baseline))+') اختلاف زیادی دارد؛ پیشنهاد می‌شود جزئیات مدل بررسی شود.'});
+      if(!r.fallback&&r.baseline>0&&Math.abs(r.advanced-r.baseline)/r.baseline>0.35) risky.push({r,why:'پیش‌بینی هوشمند ('+F.n(Math.round(r.advanced))+') با پیش‌بینی ساده ('+F.n(Math.round(r.baseline))+') اختلاف زیادی دارد؛ پیشنهاد می‌شود بررسی شود.'});
     });
     const seen=new Set(); const uniq=risky.filter(x=>{ if(seen.has(x.r.name)) return false; seen.add(x.r.name); return true; });
     if(!uniq.length) return '<div class="empty">هشدار قابل‌توجهی برای نمایندگان این فیلتر یافت نشد.</div>';
-    return uniq.slice(0,20).map(x=>'<div class="alert medium"><h3>نیازمند بررسی Forecast — '+esc(x.r.name)+'</h3><div class="meta">پیش‌بینی: '+F.n(Math.round(x.r.advanced||x.r.point))+' '+U+' · سطح اطمینان: '+confBadge(x.r.confidence.level)+'</div><div>'+esc(x.why)+'</div></div>').join('');
+    return uniq.slice(0,20).map(x=>'<div class="alert medium"><h3>نیازمند بررسی — '+esc(x.r.name)+'</h3><div class="meta">پیش‌بینی: '+F.n(Math.round(x.r.advanced||x.r.point))+' '+U+' · میزان اطمینان: '+confBadge(x.r.confidence.level)+'</div><div>'+esc(x.why)+'</div></div>').join('');
   }
 
   function repTable(fc){
@@ -3327,16 +3332,21 @@ TVL.views.forecast={render(app){
       {key:'cur',label:'فروش تا امروز',num:true,sortVal:r=>r.insufficient?-1:r.toDate,cell:r=>r.insufficient?'<span class="flat">—</span>':F.n(r.toDate)},
       {key:'fc',label:'پیش‌بینی پایان ماه',num:true,sortVal:r=>r.insufficient?-1:r.point,cell:r=>r.insufficient?'<span class="flat">—</span>':'<b>'+F.n(r.point)+'</b>'},
       {key:'rem',label:'باقی‌مانده',num:true,sortVal:r=>r.insufficient?-1:(r.point-r.toDate),cell:r=>r.insufficient?'<span class="flat">—</span>':F.n(Math.max(0,r.point-r.toDate))},
-      {key:'avg',label:'میانگین روزانه',num:true,sortVal:r=>r.insufficient?-1:(r.elapsed?r.toDate/r.elapsed:0),cell:r=>r.insufficient?'<span class="flat">—</span>':F.n(r.elapsed?r.toDate/r.elapsed:0)},
-      {key:'el',label:'روز سپری‌شده',num:true,sortVal:r=>r.insufficient?-1:r.elapsed,cell:r=>r.insufficient?'—':F.n(r.elapsed)},
-      {key:'rd',label:'روز باقی‌مانده',num:true,sortVal:r=>r.insufficient?-1:(r.totalW-r.elapsed),cell:r=>r.insufficient?'—':F.n(Math.max(0,r.totalW-r.elapsed))},
       {key:'gr',label:'رشد پیش‌بینی',num:true,sortVal:r=>(r.insufficient||r.baseline<=0)?-1e9:(r.advanced/r.baseline-1),cell:r=>(r.insufficient||r.baseline<=0)?'<span class="flat">داده کافی نیست</span>':'<span class="'+F.cls(r.advanced/r.baseline-1)+'">'+F.sgn(r.advanced/r.baseline-1)+'</span>',csv:r=>r.insufficient?'':r.advanced/r.baseline-1},
-      {key:'err',label:'خطای تاریخی مدل',num:true,sortVal:r=>(r.selection&&r.selection.type==='single'&&r.selection.model.wape!==null)?r.selection.model.wape:2,cell:r=>(r.selection&&r.selection.type==='single'&&r.selection.model.wape!==null)?F.pct(r.selection.model.wape,0):'<span class="flat">—</span>'},
-      {key:'conf',label:'سطح اطمینان',sortVal:r=>r.insufficient?-1:({High:3,Medium:2,Low:1}[r.confidence.level]||0),cell:r=>r.insufficient?'—':confBadge(r.confidence.level)},
-      {key:'st',label:'وضعیت Forecast',cell:r=>r.insufficient?'<span class="tag t-low">داده کافی نیست</span>':(r.fallback?'<span class="tag t-sugg">Fallback — داده کم</span>':'<span class="tag t-pos">'+esc(r.chosenModel)+'</span>')}
+      {key:'conf',label:'میزان اطمینان',sortVal:r=>r.insufficient?-1:({High:3,Medium:2,Low:1}[r.confidence.level]||0),cell:r=>r.insufficient?'—':confBadge(r.confidence.level)},
+      {key:'st',label:'وضعیت',cell:r=>r.insufficient?'<span class="tag t-low">داده کافی نیست</span>':(r.fallback?'<span class="tag t-sugg">داده کم</span>':'<span class="tag t-pos">آماده</span>')}
     ];
     return UI.table('fcRepTbl_'+fc.product,{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-reps-'+fc.product,sort:['fc',-1],
-      footer:rs=>'<td></td><td>جمع</td><td class="num">'+F.n(rs.reduce((s,r)=>s+(r.insufficient?0:r.toDate),0))+'</td><td class="num">'+F.n(rs.reduce((s,r)=>s+(r.insufficient?0:r.point),0))+'</td>'+'<td colspan="'+(cols.length-4)+'"></td>'});
+      rowKey:r=>r.name,
+      expand:r=>{
+        if(r.insufficient) return '<div class="rd-grid"><div><span class="rd-l">وضعیت</span><span class="rd-v">'+esc(r.reason||'داده کافی نیست')+'</span></div></div>';
+        return '<div class="rd-grid">'
+          +'<div><span class="rd-l">میانگین روزانه</span><span class="rd-v">'+F.n(r.elapsed?r.toDate/r.elapsed:0)+' '+U+'</span></div>'
+          +'<div><span class="rd-l">روز سپری‌شده / باقی‌مانده</span><span class="rd-v">'+F.n(r.elapsed)+' / '+F.n(Math.max(0,r.totalW-r.elapsed))+'</span></div>'
+          +'<div><span class="rd-l">بازه‌ی محتمل پیش‌بینی</span><span class="rd-v">'+F.n(r.lower)+' تا '+F.n(r.upper)+'</span></div>'
+          +'<div><span class="rd-l">دقت روش روی داده‌ی گذشته</span><span class="rd-v">'+((r.selection&&r.selection.type==='single'&&r.selection.model.wape!==null)?(wapeWord(r.selection.model.wape)+' (≈'+F.pct(r.selection.model.wape,0)+')'):'نامشخص')+'</span></div>'
+          +'<div><span class="rd-l">روش انتخاب‌شده</span><span class="rd-v">'+esc(r.fallback?'پیش‌بینی ساده (داده کم)':r.chosenModel)+'</span></div>'
+          +'</div>'; }});
   }
 
   /* =====================================================================================
@@ -3369,24 +3379,26 @@ TVL.views.forecast={render(app){
     const cards=nf.products.map(p=>{
       const n=nf.network[p]; const d=n.direct;
       const recVal=n.recommendation==='direct'?d.point:n.sumReps;
-      const recLabel=n.recommendation==='direct'?'Forecast مستقیم شبکه':'Σ Forecast نمایندگان';
+      const recLabel=n.recommendation==='direct'?'بر اساس برآورد مستقیم کل شبکه':'بر اساس جمع پیش‌بینی نمایندگان';
       const forecastedReps=nf.reps.filter(r=>r[p]&&r[p].status==='Forecasted');
       const avgRep=forecastedReps.length?forecastedReps.reduce((s,r)=>s+r[p].point,0)/forecastedReps.length:null;
       const histBadge=d.usedExtendedHistory?' <span class="tag t-pos" data-tip="'+esc(d.extendedHistoryNote||'')+'">+سابقه‌ی چندساله</span>':'';
-      return '<div class="prod-block" data-accent="'+themeOf(p)+'" style="margin:0"><div class="panel"><h2>Forecast شبکه — '+esc(p)+histBadge+'</h2><p class="sub">ماه هدف: '+esc(F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m))+(d.usedExtendedHistory?' · '+esc(d.extendedHistoryNote):'')+'</p>'
+      return '<div class="prod-block" data-accent="'+themeOf(p)+'" style="margin:0"><div class="panel"><h2>پیش‌بینی ماه آینده — '+esc(p)+' (کل شبکه)'+histBadge+'</h2><p class="sub">ماه هدف: '+esc(F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m))+(d.usedExtendedHistory?' · '+esc(d.extendedHistoryNote):'')+'</p>'
         +'<div class="kpis">'
-          +TVL.kpi.card({label:'Forecast کل '+p+' ('+recLabel+')',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:n.recommendReason})
-          +TVL.kpi.card({label:'میانگین Forecast نمایندگان',raw:avgRep!==null?(F.n(Math.round(avgRep))+U_small):'<span class="flat">—</span>'})
-          +TVL.kpi.card({label:'تعداد نمایندگان دارای Forecast',raw:F.n(forecastedReps.length)+' <small>از '+F.n(nf.reps.length)+'</small>'})
-          +TVL.kpi.card({label:'Forecast Confidence (سطح شبکه)',raw:d.status==='Forecasted'?confBadge(d.confidence.level):'<span class="flat">—</span>',extra:d.status==='Forecasted'?d.confidence.reason:''})
+          +TVL.kpi.card({label:'پیش‌بینی کل '+p+' برای ماه آینده',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:recLabel+' — '+n.recommendReason})
+          +TVL.kpi.card({label:'میزان اطمینان (کل شبکه)',raw:d.status==='Forecasted'?confBadge(d.confidence.level):'<span class="flat">—</span>',extra:d.status==='Forecasted'?d.confidence.reason:''})
+          +TVL.kpi.card({label:'تعداد نمایندگان دارای پیش‌بینی',raw:F.n(forecastedReps.length)+' <small>از '+F.n(nf.reps.length)+'</small>'})
           +TVL.kpi.card({label:'الگوی فصلی',raw:d.status==='Forecasted'?esc(d.seasonality.label):'<span class="flat">—</span>',extra:d.status==='Forecasted'?d.seasonality.reason:''})
-          +TVL.kpi.card({label:'Σ Forecast نمایندگان',raw:F.n(Math.round(n.sumReps))+U_small})
-          +TVL.kpi.card({label:'Forecast مستقیم شبکه',raw:d.status==='Forecasted'?(F.n(Math.round(d.point))+U_small):'<span class="flat">—</span>',extra:d.status==='Forecasted'?('بازه: '+fmtRange(d.lower,d.upper)):''})
-          +TVL.kpi.card({label:'اختلاف (مستقیم − Σنمایندگان)',raw:(n.diff===null?'<span class="flat">—</span>':('<span class="'+F.cls(n.diff)+'">'+F.sgnN(Math.round(n.diff))+'</span>'+U_small))})
-          +TVL.kpi.card({label:'خطای Backtest — مستقیم',raw:(n.directBacktest&&n.directBacktest.wape!==null)?F.pct(n.directBacktest.wape,0):'<span class="flat">—</span>',extra:n.directBacktest?('MAE ≈ '+F.n(Math.round(n.directBacktest.mae))+' · '+n.directBacktest.n+' نقطه'):''})
-          +TVL.kpi.card({label:'خطای Backtest — Σنمایندگان',raw:(n.sumRepsBacktest&&n.sumRepsBacktest.wape!==null)?F.pct(n.sumRepsBacktest.wape,0):'<span class="flat">—</span>',extra:n.sumRepsBacktest?('MAE ≈ '+F.n(Math.round(n.sumRepsBacktest.mae))+' · '+n.sumRepsBacktest.n+' نقطه'):''})
-          +TVL.kpi.card({label:'مدل منتخب (سطح شبکه)',raw:d.status==='Forecasted'?esc(d.model):'<span class="flat">—</span>'})
-        +'</div></div></div>';
+        +'</div>'
+        +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">جزئیات بیشتر (برای تحلیلگر)</summary><div class="kpis" style="margin-top:8px">'
+          +TVL.kpi.card({label:'میانگین پیش‌بینی هر نماینده',raw:avgRep!==null?(F.n(Math.round(avgRep))+U_small):'<span class="flat">—</span>'})
+          +TVL.kpi.card({label:'جمع پیش‌بینی نمایندگان',raw:F.n(Math.round(n.sumReps))+U_small})
+          +TVL.kpi.card({label:'برآورد مستقیم کل شبکه',raw:d.status==='Forecasted'?(F.n(Math.round(d.point))+U_small):'<span class="flat">—</span>',extra:d.status==='Forecasted'?('بازه: '+fmtRange(d.lower,d.upper)):''})
+          +TVL.kpi.card({label:'اختلاف دو روش محاسبه',raw:(n.diff===null?'<span class="flat">—</span>':('<span class="'+F.cls(n.diff)+'">'+F.sgnN(Math.round(n.diff))+'</span>'+U_small))})
+          +TVL.kpi.card({label:'دقت برآورد مستقیم (بر اساس گذشته)',raw:(n.directBacktest&&n.directBacktest.wape!==null)?wapeTag(n.directBacktest.wape):'<span class="flat">—</span>',extra:n.directBacktest?('سنجیده‌شده روی '+n.directBacktest.n+' نقطه‌ی تاریخی'):''})
+          +TVL.kpi.card({label:'دقت جمع نمایندگان (بر اساس گذشته)',raw:(n.sumRepsBacktest&&n.sumRepsBacktest.wape!==null)?wapeTag(n.sumRepsBacktest.wape):'<span class="flat">—</span>',extra:n.sumRepsBacktest?('سنجیده‌شده روی '+n.sumRepsBacktest.n+' نقطه‌ی تاریخی'):''})
+          +TVL.kpi.card({label:'روش محاسبه (کل شبکه)',raw:d.status==='Forecasted'?esc(d.model):'<span class="flat">—</span>'})
+        +'</div></details></div></div>';
     });
     return nf.products.length>1?('<div class="grid2">'+cards.join('')+'</div>'):cards.join('');
   }
@@ -3398,68 +3410,75 @@ TVL.views.forecast={render(app){
     return nf.products.map(p=>{
       const rows=nf.reps.filter(r=>r[p]&&r[p].status==='Forecasted').slice().sort((a,b)=>b[p].point-a[p].point).slice(0,14);
       const title='پیش‌بینی فروش '+p+' نمایندگان برای ماه آینده';
-      const chart=Ch.slot(Ch.bar(rows.map(r=>({l:r.name.split('(')[0],v:r[p].point,tip:'<b>'+esc(r.name)+'</b><br>Forecast '+p+': '+F.n(Math.round(r[p].point))})),{H:260,rot:true,labelW:60,title}));
-      return '<div class="prod-block" data-accent="'+themeOf(p)+'" style="margin:0">'+H.panel(title,'۱۴ نماینده‌ی برتر بر اساس Forecast ماه آینده — واحد: '+U+'.',rows.length?chart:'<div class="empty">نماینده‌ای با Forecast برای این محصول در فیلتر فعلی نیست.</div>')+'</div>';
+      const chart=Ch.slot(Ch.bar(rows.map(r=>({l:r.name.split('(')[0],v:r[p].point,tip:'<b>'+esc(r.name)+'</b><br>پیش‌بینی '+p+': '+F.n(Math.round(r[p].point))})),{H:260,rot:true,labelW:60,title}));
+      return '<div class="prod-block" data-accent="'+themeOf(p)+'" style="margin:0">'+H.panel(title,'۱۴ نماینده‌ی برتر بر اساس پیش‌بینی ماه آینده — واحد: '+U+'.',rows.length?chart:'<div class="empty">نماینده‌ای با پیش‌بینی برای این محصول در فیلتر فعلی نیست.</div>')+'</div>';
     }).join('');
   }
 
   function nextMonthRepTable(nf){
     const rows=nf.reps;
     if(nf.products.length===1){
-      // Single product selected → exactly the columns asked for, nothing from the other product.
+      // Single product selected → plain columns up front; technical detail (trend, accuracy,
+      // chosen method) moved to a click-to-expand row panel, same pattern as the «ماه جاری» table.
       const p=nf.products[0];
       const cols=[
         {key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)},
-        {key:'fc',label:'Forecast '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)},
-        {key:'trend',label:'روند',sortVal:r=>{ const e=r[p]; return (e&&e.trend&&e.trend.rel!==undefined)?e.trend.rel:-99; },cell:r=>{ const e=r[p]; return e&&e.trend?esc(e.trend.label):'<span class="flat">—</span>'; }},
-        {key:'err',label:'خطا (WAPE)',num:true,sortVal:r=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?e.backtest.wape:2; },cell:r=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?F.pct(e.backtest.wape,0):'<span class="flat">—</span>'; }},
+        {key:'fc',label:'پیش‌بینی '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)},
         {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=fmConfOf(r,p); return c?confRank[c]:0; },cell:r=>{ const c=fmConfOf(r,p); return c?confBadge(c):'<span class="flat">—</span>'; }},
-        {key:'model',label:'مدل انتخاب‌شده',cell:r=>{ const e=r[p]; return (e&&e.status==='Forecasted')?esc(e.model):'<span class="flat">—</span>'; }},
         {key:'status',label:'وضعیت داده',cell:r=>{ const s=fmStatusOf(r,p); return s==='Forecasted'?'<span class="tag t-pos">آماده</span>':'<span class="tag t-low">'+(r[p]?'بدون سابقه':'—')+'</span>'; }}
       ];
-      return UI.table('fmRepTbl_'+p,{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-'+p,sort:['fc',-1]});
+      return UI.table('fmRepTbl_'+p,{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-'+p,sort:['fc',-1],
+        rowKey:r=>r.name,
+        expand:r=>{ const e=r[p]; if(!e||e.status!=='Forecasted') return '<div class="rd-grid"><div><span class="rd-l">وضعیت</span><span class="rd-v">'+(r[p]?'بدون سابقه کافی':'بدون داده')+'</span></div></div>';
+          return '<div class="rd-grid">'
+            +'<div><span class="rd-l">روند نسبت به ماه‌های قبل</span><span class="rd-v">'+(e.trend?esc(e.trend.label):'—')+'</span></div>'
+            +'<div><span class="rd-l">دقت روش روی داده‌ی گذشته</span><span class="rd-v">'+((e.backtest&&e.backtest.wape!=null)?(wapeWord(e.backtest.wape)+' (≈'+F.pct(e.backtest.wape,0)+')'):'نامشخص')+'</span></div>'
+            +'<div><span class="rd-l">روش محاسبه</span><span class="rd-v">'+esc(e.model||'—')+'</span></div>'
+            +'</div>'; }});
     }
-    // All products selected → one Forecast column per product, clearly product-labelled.
+    // All products selected → one forecast column per product, clearly product-labelled; the
+    // per-product trend/accuracy/method detail moves into the row expand panel.
     const overallConf=r=>{ const cs=nf.products.map(p=>fmConfOf(r,p)).filter(Boolean); if(!cs.length) return null;
       return cs.reduce((worst,c)=>(confRank[c]<confRank[worst]?c:worst),cs[0]); };
     const cols=[{key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)}];
-    nf.products.forEach(p=>cols.push({key:'fc_'+p,label:'Forecast '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)}));
+    nf.products.forEach(p=>cols.push({key:'fc_'+p,label:'پیش‌بینی '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)}));
     cols.push(
-      {key:'trend',label:'روند',cell:r=>nf.products.map(p=>{ const e=r[p]; return e&&e.trend?('<div class="s">'+p+': '+esc(e.trend.label)+'</div>'):''; }).join('')},
-      {key:'err',label:'خطای Backtest (WAPE)',num:true,
-        sortVal:r=>{ const vals=nf.products.map(p=>r[p]&&r[p].backtest&&r[p].backtest.wape!=null?r[p].backtest.wape:null).filter(v=>v!==null); return vals.length?Math.min(...vals):2; },
-        cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.backtest&&e.backtest.wape!=null)?('<div class="s">'+p+': '+F.pct(e.backtest.wape,0)+'</div>'):''; }).join('')||'<span class="flat">—</span>'},
       {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=overallConf(r); return c?confRank[c]:0; },cell:r=>{ const c=overallConf(r); return c?confBadge(c):'<span class="flat">—</span>'; }},
-      {key:'model',label:'مدل انتخاب‌شده',cell:r=>nf.products.map(p=>{ const e=r[p]; return (e&&e.status==='Forecasted')?('<div class="s">'+p+': '+esc(e.model)+'</div>'):''; }).join('')},
       {key:'status',label:'وضعیت داده',cell:r=>nf.products.map(p=>{ const s=fmStatusOf(r,p); return s==='Forecasted'?('<span class="tag t-pos">'+p+': آماده</span>'):('<span class="tag t-low">'+p+': '+(r[p]?'بدون سابقه':'—')+'</span>'); }).join(' ')}
     );
-    return UI.table('fmRepTbl_all',{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-reps',sort:['fc_'+nf.products[0],-1]});
+    return UI.table('fmRepTbl_all',{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-reps',sort:['fc_'+nf.products[0],-1],
+      rowKey:r=>r.name,
+      expand:r=>'<div class="rd-grid">'+nf.products.map(p=>{ const e=r[p]; if(!e||e.status!=='Forecasted') return '<div><span class="rd-l">'+p+'</span><span class="rd-v">'+(r[p]?'بدون سابقه کافی':'بدون داده')+'</span></div>';
+        return '<div><span class="rd-l">'+p+' — روند</span><span class="rd-v">'+(e.trend?esc(e.trend.label):'—')+'</span></div>'
+          +'<div><span class="rd-l">'+p+' — دقت روش</span><span class="rd-v">'+((e.backtest&&e.backtest.wape!=null)?(wapeWord(e.backtest.wape)+' (≈'+F.pct(e.backtest.wape,0)+')'):'نامشخص')+'</span></div>'
+          +'<div><span class="rd-l">'+p+' — روش محاسبه</span><span class="rd-v">'+esc(e.model||'—')+'</span></div>'; }).join('')+'</div>'});
   }
 
   function nextMonthMethodology(nf){
     const rows=[
-      ['آخرین ماه کامل در داده',F.monthLabel(J.fromMonthKey(nf.currentMonthKey-1).y,J.fromMonthKey(nf.currentMonthKey-1).m)+' (ماه جاری «'+F.monthLabel(J.fromMonthKey(nf.currentMonthKey).y,J.fromMonthKey(nf.currentMonthKey).m)+'» هنوز کامل نشده و در ساخت این Forecast استفاده نمی‌شود)'],
-      ['ماه هدف Forecast',F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m)],
+      ['آخرین ماه کامل در داده',F.monthLabel(J.fromMonthKey(nf.currentMonthKey-1).y,J.fromMonthKey(nf.currentMonthKey-1).m)+' (ماه جاری «'+F.monthLabel(J.fromMonthKey(nf.currentMonthKey).y,J.fromMonthKey(nf.currentMonthKey).m)+'» هنوز کامل نشده و در ساخت این پیش‌بینی استفاده نمی‌شود)'],
+      ['ماه هدف پیش‌بینی',F.monthLabel(J.fromMonthKey(nf.targetMonthKey).y,J.fromMonthKey(nf.targetMonthKey).m)],
       ['تعداد ماه‌های کامل قابل استفاده',F.n(nf.completedMonthKeys.length)],
       ['واحد ساخت سری زمانی','ماهانه (نه روزانه)؛ هر نماینده سری مستقل خودش را، فقط از ماه‌هایی که در آن فعال بوده، دارد.'],
-      ['مدل‌های کاندید','Naive، میانگین کل تاریخچه، میانگین متحرک، میانگین متحرک وزنی، SES، Holt (روند نمایی)، Croston (برای تقاضای متناوب)، Seasonal Naive (همان ماه سال قبل — فقط وقتی ≥۱۲ ماه سابقه در دسترس است) — هرکدام هم روی داده خام و هم نسخه‌ی Winsorize‌شده'],
-      ['روش Backtesting','Rolling-Origin یک‌گام-به-جلو روی تمام ماه‌های کامل؛ هیچ مدلی هنگام Backtest به داده‌ی بعد از نقطه‌ی شبیه‌سازی‌شده دسترسی ندارد.'],
-      ['معیار انتخاب مدل','کمترین WAPE؛ در تساوی نزدیک (±۱۰٪)، ساده‌ترین مدل انتخاب می‌شود تا از Overfitting روی سری‌های کوتاه جلوگیری شود.'],
-      ['Seasonality',(function(){
+      ['روش‌های بررسی‌شده','چند روش آماری متفاوت (از میانگین ساده تا روش‌های حساس به روند و تقاضای نامنظم) روی داده‌ی هر سری امتحان می‌شود و روشی که در آزمون روی ماه‌های گذشته دقیق‌تر بوده انتخاب می‌شود؛ از جمله «همان ماه سال قبل» وقتی حداقل ۱۲ ماه سابقه در دسترس باشد.'],
+      ['روش ارزیابی دقت','هر روش روی تمام ماه‌های کامل گذشته آزمایش می‌شود، طوری که هیچ‌وقت به داده‌ی بعد از نقطه‌ای که شبیه‌سازی می‌شود دسترسی نداشته باشد — دقیقاً مثل اینکه واقعاً در آن ماه پیش‌بینی شده باشد.'],
+      ['معیار انتخاب روش','کمترین میزان خطا در آزمون روی گذشته؛ در تساوی نزدیک، ساده‌ترین روش انتخاب می‌شود تا پیش‌بینی روی سری‌های کوتاه بیش‌برازش نشود.'],
+      ['الگوی فصلی',(function(){
         const egg=nf.network['تخم‌مرغ']&&nf.network['تخم‌مرغ'].direct;
         if(egg&&egg.usedExtendedHistory&&egg.status==='Forecasted')
           return 'برای تخم‌مرغ (کل شبکه)، با سابقه‌ی تاریخیِ چندساله: <b>'+esc(egg.seasonality.label)+'</b> — '+esc(egg.seasonality.reason);
-        return 'برای سری‌هایی با کمتر از ۱۲ ماه سابقه (اکثر نمایندگان و محصولاتی بدون سابقه‌ی تاریخیِ اضافه)، فصلی/الگوی ماهانه ادعا نمی‌شود (هرگز ساختگی تولید نمی‌شود). برای «تخم‌مرغ / کل شبکه» با افزودن سابقه‌ی چندساله (TVL.historical)، این محدودیت واقعاً برطرف و الگوی فصلی به‌صورت واقعی بررسی می‌شود.';
+        return 'برای سری‌هایی با کمتر از ۱۲ ماه سابقه (اکثر نمایندگان و محصولاتی بدون سابقه‌ی تاریخیِ اضافه)، فصلی/الگوی ماهانه ادعا نمی‌شود (هرگز ساختگی تولید نمی‌شود). برای «تخم‌مرغ / کل شبکه» با افزودن سابقه‌ی چندساله، این محدودیت واقعاً برطرف و الگوی فصلی به‌صورت واقعی بررسی می‌شود.';
       })()],
       ['سابقه‌ی تاریخیِ اضافه (تخم‌مرغ/کل شبکه)',TVL.historical.hasHistory('تخم‌مرغ')
-        ?('از سال '+F.n(TVL.historical.yearRange('تخم‌مرغ').min)+' تا '+F.n(TVL.historical.yearRange('تخم‌مرغ').max)+' («قبل از ۱۴۰۵»، تا با داده‌ی تفصیلیِ نمایندگان هم‌پوشانی/دوبار-شماری نداشته باشد)، فقط برای Forecast «کل شبکه»‌ی تخم‌مرغ و فقط وقتی هیچ فیلتر استان/شهر/نماینده/مشتری/کانالی فعال نیست؛ تلابار و تک‌تک نمایندگان از این افزونه استفاده نمی‌کنند.')
+        ?('از سال '+F.n(TVL.historical.yearRange('تخم‌مرغ').min)+' تا '+F.n(TVL.historical.yearRange('تخم‌مرغ').max)+' («قبل از ۱۴۰۵»، تا با داده‌ی تفصیلیِ نمایندگان هم‌پوشانی/دوبار-شماری نداشته باشد)، فقط برای پیش‌بینی «کل شبکه»‌ی تخم‌مرغ و فقط وقتی هیچ فیلتر استان/شهر/نماینده/مشتری/کانالی فعال نیست؛ تلابار و تک‌تک نمایندگان از این افزونه استفاده نمی‌کنند.')
         :'—'],
-      ['Outlier','مقادیر پرت حذف نمی‌شوند؛ نسخه‌ی Winsorize‌شده (کران‌گذاری با IQR) به‌عنوان یک کاندید جداگانه در Backtest رقابت می‌کند و فقط در صورت خطای کمتر انتخاب می‌شود.'],
-      ['هماهنگی سطح شبکه با نمایندگان','هر دو روش (Σ نمایندگان و Forecast مستقیم شبکه) محاسبه و Backtest شده‌اند؛ روش با خطای کمتر به‌عنوان «Forecast عملیاتی» پیشنهاد می‌شود (پیش‌فرض: Σ نمایندگان).'],
-      ['Rounding','تمام محاسبات داخلی با دقت اعشاری کامل انجام می‌شود؛ فقط عدد نهایی نمایش‌داده‌شده گرد می‌شود.'],
+      ['مقادیر پرت (Outlier)','مقادیر پرت حذف نمی‌شوند؛ یک نسخه‌ی اصلاح‌شده (با محدودکردن مقادیر خیلی دور از حد معمول) هم به‌عنوان یک گزینه‌ی جداگانه آزمایش می‌شود و فقط در صورت دقت بیشتر انتخاب می‌شود.'],
+      ['هماهنگی سطح شبکه با نمایندگان','هم «جمع پیش‌بینی نمایندگان» و هم «برآورد مستقیم کل شبکه» محاسبه و روی گذشته آزمایش شده‌اند؛ روشی که دقیق‌تر بوده به‌عنوان عدد عملیاتی پیشنهاد می‌شود (پیش‌فرض: جمع نمایندگان).'],
+      ['گرد کردن اعداد','تمام محاسبات داخلی با دقت اعشاری کامل انجام می‌شود؛ فقط عدد نهایی نمایش‌داده‌شده گرد می‌شود.'],
       ['زمان محاسبه',F.dateTime(Date.now())]
     ];
-    return '<table><tbody>'+rows.map(r=>'<tr><td style="white-space:nowrap;font-weight:600;vertical-align:top">'+esc(r[0])+'</td><td style="white-space:normal">'+r[1]+'</td></tr>').join('')+'</tbody></table>';
+    return '<details><summary style="cursor:pointer;color:var(--muted)">روش محاسبه (برای تحلیلگر) — برای دیدن جزئیات کلیک کنید</summary>'
+      +'<table style="margin-top:8px"><tbody>'+rows.map(r=>'<tr><td style="white-space:nowrap;font-weight:600;vertical-align:top">'+esc(r[0])+'</td><td style="white-space:normal">'+r[1]+'</td></tr>').join('')+'</tbody></table></details>';
   }
 
   function nextMonthValidation(nf){
@@ -3470,24 +3489,25 @@ TVL.views.forecast={render(app){
     const modelCounts={}; nf.reps.forEach(r=>nf.products.forEach(p=>{ const e=r[p]; if(e&&e.status==='Forecasted') modelCounts[e.model]=(modelCounts[e.model]||0)+1; }));
     const topModels=Object.entries(modelCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
     const coverageCards=nf.products.length>1
-      ? TVL.kpi.card({label:'نمایندگان با Forecast کامل (هر '+F.n(nf.products.length)+' محصول)',raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
-        +TVL.kpi.card({label:'نمایندگان با Forecast جزئی (فقط یک محصول)',raw:F.n(nf.partialCount)})
-        +TVL.kpi.card({label:'نمایندگان Insufficient Data',raw:F.n(nf.insufficientCount)})
-      : TVL.kpi.card({label:'نمایندگان با Forecast — '+nf.products[0],raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
-        +TVL.kpi.card({label:'نمایندگان Insufficient Data — '+nf.products[0],raw:F.n(nf.insufficientCount)});
+      ? TVL.kpi.card({label:'نمایندگان با پیش‌بینی کامل (هر '+F.n(nf.products.length)+' محصول)',raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
+        +TVL.kpi.card({label:'نمایندگان با پیش‌بینی جزئی (فقط یک محصول)',raw:F.n(nf.partialCount)})
+        +TVL.kpi.card({label:'نمایندگان بدون داده کافی',raw:F.n(nf.insufficientCount)})
+      : TVL.kpi.card({label:'نمایندگان با پیش‌بینی — '+nf.products[0],raw:F.n(nf.forecastedCount)+' <small>از '+F.n(nf.reps.length)+'</small>'})
+        +TVL.kpi.card({label:'نمایندگان بدون داده کافی — '+nf.products[0],raw:F.n(nf.insufficientCount)});
     return '<div class="kpis">'+coverageCards
-      +TVL.kpi.card({label:'میانه‌ی WAPE در Backtest',raw:median!==null?F.pct(median,0):'<span class="flat">—</span>'})
-      +TVL.kpi.card({label:'میانگین WAPE در Backtest',raw:mean!==null?F.pct(mean,0):'<span class="flat">—</span>'})
+      +TVL.kpi.card({label:'دقت کلی پیش‌بینی‌ها (میانه)',raw:median!==null?wapeTag(median):'<span class="flat">—</span>',extra:median!==null?('≈'+F.pct(median,0)):''})
       +'</div>'
-      +'<p class="sub">پرتکرارترین مدل‌های انتخاب‌شده در میان نمایندگان ('+esc(nf.products.join('، '))+'): '+(topModels.length?topModels.map(x=>esc(x[0])+' ('+F.n(x[1])+')').join('، '):'—')+'</p>';
+      +'<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">جزئیات بیشتر (برای تحلیلگر)</summary>'
+      +'<div class="kpis" style="margin-top:8px">'+TVL.kpi.card({label:'میانگین خطای آزمون روی گذشته (WAPE)',raw:mean!==null?F.pct(mean,0):'<span class="flat">—</span>'})+'</div>'
+      +'<p class="sub">پرتکرارترین روش‌های انتخاب‌شده در میان نمایندگان ('+esc(nf.products.join('، '))+'): '+(topModels.length?topModels.map(x=>esc(x[0])+' ('+F.n(x[1])+')').join('، '):'—')+'</p></details>';
   }
 
   function renderNextMonth(app,nf){
     const title=nf.products.length>1?'همه‌ی محصولات':nf.products[0];
-    const rest=H.panel('گزارش Validation — '+esc(title),'وضعیت پوشش و کیفیت Forecast برای نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
+    const rest=H.panel('وضعیت پوشش و کیفیت پیش‌بینی — '+esc(title),'میزان پوشش و دقت کلی پیش‌بینی برای نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
       +nextMonthChart(nf)
-      +H.panel('جدول Forecast ماه آینده — نمایندگان ('+esc(title)+')','برای مرتب‌سازی روی سرستون کلیک کنید (مثلاً بر اساس Forecast یا خطا).',nextMonthRepTable(nf))
-      +H.panel('روش محاسبه (ماه آینده)','',nextMonthMethodology(nf));
+      +H.panel('جدول پیش‌بینی ماه آینده — نمایندگان ('+esc(title)+')','برای مرتب‌سازی روی سرستون کلیک و برای جزئیات هر نماینده روی ردیف کلیک کنید.',nextMonthRepTable(nf))
+      +'<div class="panel">'+nextMonthMethodology(nf)+'</div>';
     // Exactly one product selected → the Validation/table/methodology panels (not already
     // per-product-wrapped like the network cards/chart above) get the SAME single accent too,
     // so the whole tab — table sort highlights, badges, everything reading var(--accent) —
@@ -3505,7 +3525,7 @@ TVL.views.forecast={render(app){
   const allProducts=app.ds.meta.products;
   const selProducts=(app.st.products&&app.st.products.length)?app.st.products:allProducts;
   const isAllSelected=allProducts.length>1&&allProducts.every(p=>selProducts.includes(p));
-  const productFilterCtl='<div class="filters-row" style="margin:0 0 10px"><span style="font-size:12px;color:var(--muted);white-space:nowrap">فیلتر محصول Forecast:</span><div class="subnav" role="tablist" style="margin:0">'
+  const productFilterCtl='<div class="filters-row" style="margin:0 0 10px"><span style="font-size:12px;color:var(--muted);white-space:nowrap">فیلتر محصول پیش‌بینی:</span><div class="subnav" role="tablist" style="margin:0">'
     +'<button data-fmprod="__all__" class="'+(isAllSelected?'on':'')+'">همه محصولات</button>'
     +allProducts.map(p=>{ const on=!isAllSelected&&selProducts.length===1&&selProducts[0]===p;
       // Active single-product button lights up in that product's own theme colour (from the
@@ -3525,7 +3545,7 @@ TVL.views.forecast={render(app){
     return productFilterCtl+modeToggle+headN+(nf?renderNextMonth(app,nf):H.empty);
   }
 
-  let head='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش پایان ماه</b> — واحد: '+U+'. آخرین بروزرسانی داده: <b>'+F.dateLong(app.ds.meta.dateMax)+'</b>. دوره‌ی Forecast: از ابتدای ماه جاری تا پایان آن.</p>'
+  let head='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش پایان ماه</b> — واحد: '+U+'. آخرین بروزرسانی داده: <b>'+F.dateLong(app.ds.meta.dateMax)+'</b>. دوره‌ی پیش‌بینی: از ابتدای ماه جاری تا پایان آن.</p>'
     +'<div class="row" style="margin:0 0 12px"><button class="btn" id="fcRefresh">↻ به‌روزرسانی پیش‌بینی</button></div>';
 
   return productFilterCtl+modeToggle+head+H.blocks(mt,(pm,p)=>{
@@ -3537,23 +3557,23 @@ TVL.views.forecast={render(app){
     const totalChart=fc.total.insufficient?H.empty:(()=>{ const bs=monthlyBandSeries(fc.total,dayMapFor(p,null)); return Ch.slot(Ch.band(bs.xs,bs.series,{H:270,splitIndex:bs.splitIndex,title:'فروش واقعی + پیش‌بینی'})); })();
     const repChart=selFc&&!selFc.insufficient?(()=>{ const bs=monthlyBandSeries(selFc,dayMapFor(p,selRep)); return Ch.slot(Ch.band(bs.xs,bs.series,{H:230,splitIndex:bs.splitIndex,title:'پیش‌بینی نماینده'})); })():'<div class="empty">داده‌ی کافی برای این نماینده نیست.</div>';
     const topReps=repOptions.slice(0,14);
-    const repBar=Ch.slot(Ch.bar(topReps.map(r=>({l:r.name.split('(')[0],v:r.point,tip:'<b>'+esc(r.name)+'</b><br>تا امروز: '+F.n(r.toDate)+'<br>پیش‌بینی: '+F.n(r.point)})),{H:260,rot:true,labelW:60,line:topReps.map(r=>r.toDate),title:'Actual-to-Date در برابر Forecast EOM'}));
+    const repBar=Ch.slot(Ch.bar(topReps.map(r=>({l:r.name.split('(')[0],v:r.point,tip:'<b>'+esc(r.name)+'</b><br>تا امروز: '+F.n(r.toDate)+'<br>پیش‌بینی: '+F.n(r.point)})),{H:260,rot:true,labelW:60,line:topReps.map(r=>r.toDate),title:'فروش تا امروز در برابر پیش‌بینی پایان ماه'}));
     return kpiRow(fc,p)
-      +H.panel('نمودار فروش واقعی + پیش‌بینی — '+esc(p),'خط ممتد = فروش واقعی تجمعی تا امروز؛ خط نقطه‌چین = پیش‌بینی؛ باند کم‌رنگ = بازه‌ی پیش‌بینی (Prediction Interval). واحد: '+U+'.',totalChart)
+      +H.panel('نمودار فروش واقعی + پیش‌بینی — '+esc(p),'خط ممتد = فروش واقعی تجمعی تا امروز؛ خط نقطه‌چین = پیش‌بینی؛ باند کم‌رنگ = بازه‌ی احتمالی پیش‌بینی. واحد: '+U+'.',totalChart)
       +'<div class="grid2">'
         +H.panel('سناریوهای پایان ماه','از همان بازه‌ی پیش‌بینی مدل استخراج شده؛ عدد دستی نیست.',scenarioTable(fc.total))
-        +H.panel('Baseline در برابر Advanced Forecast','Run Rate ساده (Baseline) هرگز حذف نشده و همیشه کنار مدل پیشرفته نمایش داده می‌شود.',baselineVsAdvanced(fc.total))
+        +H.panel('پیش‌بینی ساده در برابر پیش‌بینی هوشمند','پیش‌بینی ساده (میانگین روزانه) هرگز حذف نشده و همیشه کنار پیش‌بینی هوشمند نمایش داده می‌شود.',baselineVsAdvanced(fc.total))
       +'</div>'
-      +H.panel('هماهنگی سطح کل با سطح نمایندگان (Hierarchical Consistency)','',consistencyPanel(fc))
-      +H.panel('هدف فروش (Target)','','<div class="note">هدف فروش برای این دوره در داده/تنظیمات تعریف نشده است؛ بنابراین عدد هدف ساختگی نمایش داده نمی‌شود.</div>')
+      +H.panel('هماهنگی عدد کل با نمایندگان','',consistencyPanel(fc))
+      +H.panel('هدف فروش','','<div class="note">هدف فروش برای این دوره در داده/تنظیمات تعریف نشده است؛ بنابراین عدد هدف ساختگی نمایش داده نمی‌شود.</div>')
       +'<div class="grid2">'
         +H.panel('پیش‌بینی یک نماینده','<label>انتخاب نماینده: <select id="fcRepSel">'+repOptions.map(r=>'<option value="'+esc(r.name)+'"'+(r.name===selRep?' selected':'')+'>'+esc(r.name)+'</option>').join('')+'</select></label>',repChart)
         +H.panel('مقایسه‌ی نمایندگان: فعلی در برابر پیش‌بینی','۱۴ نماینده‌ی برتر بر اساس پیش‌بینی پایان ماه.',repBar)
       +'</div>'
-      +H.panel('هشدارهای Forecast','نمایندگانی که Forecast آن‌ها نیازمند بررسی بیشتر است (داده‌ی کم، نوسان بالا یا اختلاف زیاد بین مدل‌ها).',riskAlerts(fc))
-      +H.panel('جدول رتبه‌بندی Forecast نمایندگان','برای مرتب‌سازی روی سرستون کلیک کنید.',repTable(fc))
-      +H.panel('روش محاسبه Forecast','',methodology(fc,p))
-      +H.panel('جزئیات مدل و ارزیابی','',diagnostics(fc));
+      +H.panel('هشدارهای پیش‌بینی','نمایندگانی که پیش‌بینی آن‌ها نیازمند بررسی بیشتر است (داده‌ی کم، نوسان بالا یا اختلاف زیاد بین روش‌ها).',riskAlerts(fc))
+      +H.panel('جدول رتبه‌بندی پیش‌بینی نمایندگان','برای مرتب‌سازی روی سرستون و برای جزئیات هر نماینده روی ردیف کلیک کنید.',repTable(fc))
+      +'<div class="panel">'+methodology(fc,p)+'</div>'
+      +'<div class="panel">'+diagnostics(fc)+'</div>';
   });
 },bind(app,root){
   root.querySelectorAll('[data-fcmode]').forEach(b=>b.onclick=()=>{ app.ui.fcMode=b.dataset.fcmode; app.render(); });
