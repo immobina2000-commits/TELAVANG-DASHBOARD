@@ -3132,7 +3132,14 @@ TVL.views.pop={render(app){
       kp.push(['سهم بازار برآوردی شما (کل کشور)'+T('ESTIMATE'),F.pct(mk.nationalShare,2),'فروش کل ÷ بازار برآوردی بسته‌بندی کل کشور']); }
     else kp.push(['سهم بازار برآوردی','قابل محاسبه نیست','برای «'+esc(p)+'» فرض مصرف تعریف نشده؛ سهم بازار محاسبه نمی‌شود (صفر نمایش داده نمی‌شود).']);
     const cols=[{key:'k',label:'استان',sortVal:r=>r.prov,cell:r=>esc(r.prov),csv:r=>r.prov},
-      {key:'cov',label:'وضعیت پوشش',sortVal:r=>r.hasRep?1:0,cell:r=>r.hasRep?UI.badge('pos','دارای نماینده'):UI.badge('low','بدون نماینده'),csv:r=>r.hasRep?'دارای نماینده':'بدون نماینده'},
+      /* hasRep is scoped to the SAME period/product filter as the rest of this table (it reads
+         visits from mk.rows, built from the filtered data, not from the full dataset) — so "بدون
+         نماینده" here means "no representative sold anything in this province during the selected
+         period/product", never "this province has no representative at all". A province can
+         legitimately have an active representative who simply hasn't sold yet in a short/partial
+         period (e.g. the first few days of a new month) and still show this badge; the label spells
+         that out so it is never misread as "we have no coverage there". */
+      {key:'cov',label:'وضعیت پوشش (در این دوره)',sortVal:r=>r.hasRep?1:0,cell:r=>r.hasRep?UI.badge('pos','نماینده فعال در این دوره'):UI.badge('low','بدون فروش در این دوره'),csv:r=>r.hasRep?'نماینده فعال در این دوره':'بدون فروش نماینده در این دوره'},
       {key:'pop',label:'جمعیت'+T('FACT'),num:true,sortVal:r=>r.pop,cell:r=>F.n(r.pop),csv:r=>r.pop,csvLabel:'جمعیت'},{key:'ps',label:'سهم جمعیت کشور',num:true,sortVal:r=>r.popShare,cell:r=>F.pct(r.popShare),csv:r=>r.popShare},
       {key:'s',label:'فروش واقعی',num:true,sortVal:r=>r.sales,cell:r=>'<b>'+F.n(r.sales)+'</b>',csv:r=>r.sales,csvLabel:'فروش واقعی'},{key:'ss',label:'سهم از فروش',num:true,sortVal:r=>r.salesShare,cell:r=>F.pct(r.salesShare),csv:r=>r.salesShare},
       {key:'pc',label:'فروش به‌ازای ۱۰۰ هزار نفر',num:true,sortVal:r=>r.perCapita,cell:r=>F.n(r.perCapita,1),csv:r=>r.perCapita},
@@ -3141,7 +3148,7 @@ TVL.views.pop={render(app){
     const adv='<div class="note">این جدول برای تشخیص سریع «کجا نسبت به جمعیتش کم/زیاد می‌فروشید» است، نه سهم بازار واقعی؛ چون بدون فرض مصرف ساخته شده، محتاط بخوانیدش. فرمول: (سهم فروش استان) ÷ (سهم جمعیت استان). عدد بالای ۱ یعنی بیش از وزن جمعیتی‌اش می‌فروشید.</div>'
       +UI.table('popIdxTbl_'+p,{cols:[{key:'k',label:'استان',cell:r=>esc(r.prov)},{key:'ix',label:'شاخص نسبت به جمعیت'+T('CALCULATED'),num:true,sortVal:r=>r.idx,cell:r=>r.idx===null?'<span class="flat">قابل محاسبه نیست</span>':F.n(r.idx,2)+'×'}],rows:mk.rows,pageSize:0,exportName:'population-index-'+p,sort:['ix',-1]});
     return recon+'<div class="kpis">'+kp.map(x=>'<div class="kpi"><div class="l">'+x[0]+'</div><div class="v" style="font-size:'+(x[1].length>14?'17':'23')+'px">'+x[1]+'</div><div class="s">'+x[2]+'</div></div>').join('')+'</div>'
-      +H.panel('جدول استان‌ها بر پایه‌ی جمعیت','فروش واقعی از ردیف‌های تراکنشِ همین فیلتر مستقیماً به تفکیک استان جمع زده شده — عددی جز فروش واقعی نیست (نه سرانه، نه سهم بازار). استان‌های بدون نماینده هم برای مقایسه آمده‌اند.'+(A?'':' برای این محصول، دو ستون آخر «قابل محاسبه نیست» است چون فرض مصرفی تعریف نشده.'),
+      +H.panel('جدول استان‌ها بر پایه‌ی جمعیت','فروش واقعی از ردیف‌های تراکنشِ همین فیلتر مستقیماً به تفکیک استان جمع زده شده — عددی جز فروش واقعی نیست (نه سرانه، نه سهم بازار). استان‌هایی که در همین دوره/محصولِ فیلترشده فروشی ثبت نشده هم برای مقایسه آمده‌اند؛ این لزوماً به‌معنای نبودِ نماینده در آن استان نیست — ممکن است نماینده‌ی آن استان در این بازه‌ی زمانی/محصول هنوز فروشی ثبت نکرده باشد.'+(A?'':' برای این محصول، دو ستون آخر «قابل محاسبه نیست» است چون فرض مصرفی تعریف نشده.'),
         UI.table('popTbl_'+p,{cols:cols,rows:mk.rows,pageSize:0,exportName:'population-share-'+p,sort:['s',-1],
           footer:rs=>'<td>'+(mk.unmapped?'نامشخص: '+F.n(mk.unmapped.sales)+' + ':'')+'جمع کشور</td><td></td><td class="num">'+F.n(mk.totalPop)+'</td><td class="num">۱۰۰٪</td><td class="num">'+F.n(mk.totalSales)+'</td><td class="num">۱۰۰٪</td><td></td>'+(A?'<td class="num">'+F.n(Math.round(mk.nationalMarket))+'</td><td class="num">'+F.pct(mk.nationalShare,2)+'</td>':'<td></td><td></td>')})
       +'<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:600;font-size:13px">تحلیل پیشرفته: شاخص نسبت به جمعیت (بدون فرض مصرف)</summary><div style="margin-top:10px">'+adv+'</div></details>'); });
