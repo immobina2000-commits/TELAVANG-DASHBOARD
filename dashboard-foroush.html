@@ -2261,7 +2261,7 @@ TVL.alerts = (function(){
   const CAUSE='علت در داده‌ی موجود قابل تشخیص نیست؛ موارد زیر برای بررسی پیشنهاد می‌شود.';
   const SEVORD={High:0,Medium:1,Low:2,Info:3};
   const RULES={drop:'افت فروش',growth:'رشد فروش',repInactive:'توقف/وقفه‌ی نماینده',custInactive:'عدم فعالیت مشتری',spike:'جهش بزرگ فروش',abnormalDay:'مقدار روزانه‌ی غیرعادی',concentration:'ریسک تمرکز',missingData:'داده‌ی جاافتاده',dq:'مسئله‌ی کیفیت داده',patternShift:'تغییر ناگهانی الگوی روز'};
-  const ENT={rep:'نماینده',province:'استان',customer:'مشتری',product:'محصول',city:'شهر'};
+  const ENT={rep:'نماینده',province:'استان',customer:'مشتری',product:'محصول',city:'شهر',dataset:'کل داده'};
   let seq=0;
   function mk(o){ return Object.assign({id:'a'+(++seq),cause:CAUSE,investigate:[],kind:'business',severity:'Medium'},o,{ruleLabel:RULES[o.rule]}); }
   const ev=(cur,prev)=>[['فعلی',F.n(cur)],['قبلی',F.n(prev)],['تغییر',F.sgnN(cur-prev)],['رشد',prev>0?F.sgn(cur/prev-1):F.NA]];
@@ -2633,7 +2633,7 @@ TVL.kpi = (function(){
     cards.push(card({label:'روز فروش فعال',value:k.activeDays,prev:k.activeDaysPrev}));
     cards.push(card({label:'میانگین هر روز فروش',value:k.avgDaily,unit:U,prev:k.avgDailyPrev,extra:'جمع فروش ÷ روزهای دارای فروش'}));
     cards.push(card({label:'فاکتور / میانگین هر فاکتور',raw:F.n(k.events)+' <small>فاکتور</small>',extra:k.avgEvent===null?'<span class="flat">داده‌ای وجود ندارد</span>':'میانگین هر فاکتور: '+F.n(k.avgEvent)+' '+U,note:'شماره فاکتور واقعی در فایل نیست؛ این عدد برآورد است — هر خانه‌ی فروش مثبت، یک فاکتور حساب شده'}));
-    if(k.runRate) cards.push(card({label:'Run Rate ماه (برآورد)',value:k.runRate.value,unit:U,tag:'ESTIMATE',extra:'میانگین '+F.n(k.runRate.elapsed)+' روز کاری سپری‌شده × '+F.n(k.runRate.totalW)+' روز کاری ماه'}));
+    if(k.runRate) cards.push(card({label:'برآورد فروش کل ماه (بر پایه‌ی میانگین روزانه)',value:k.runRate.value,unit:U,tag:'ESTIMATE',extra:'میانگین '+F.n(k.runRate.elapsed)+' روز کاری سپری‌شده × '+F.n(k.runRate.totalW)+' روز کاری ماه'}));
     return '<div class="kpis">'+cards.join('')+'</div>';
   }
   return {card,row};
@@ -2898,7 +2898,7 @@ TVL.views.overview={render(app){
     if(!H.hasData(pm)&&!pm.prev) return H.empty;
     const st=story.find(x=>x.product===p); const q=(t,o)=>'<div class="q"><h3>'+t+'</h3>'+(o?'<div class="f">'+esc(o.fact)+'</div><div class="e">'+esc(o.evidence||'')+'</div>'+(o.interp?'<div class="e">'+esc(o.interp)+'</div>':''):'<div class="f flat">داده کافی نیست</div><div class="e">'+esc(mt.period.note||'داده‌ی کافی برای این پرسش نیست.')+'</div>')+'</div>';
     let opp=st.opportunity; const mk=C.market.assumptions[p]?TVL.market.provinces(pm):null;
-    if(mk){ const under=mk.rows.filter(r=>r.idx!==null&&r.idx<C.market.underIndex||(r.sales===0&&!r.hasRep)).sort((a,b)=>b.pop-a.pop).slice(0,3); if(under.length) opp={fact:opp.fact,evidence:(opp.evidence!=='—'?opp.evidence+' | ':'')+'استان‌های پرجمعیتِ کم‌فروش/بدون نماینده (شاخص جمعیت، CALCULATED): '+under.map(r=>r.prov+(r.idx===null?' (بدون فروش)':' ('+F.n(r.idx,2)+'×)')).join('، ')}; }
+    if(mk){ const under=mk.rows.filter(r=>r.idx!==null&&r.idx<C.market.underIndex||(r.sales===0&&!r.hasRep)).sort((a,b)=>b.pop-a.pop).slice(0,3); if(under.length) opp={fact:opp.fact,evidence:(opp.evidence!=='—'?opp.evidence+' | ':'')+'استان‌های پرجمعیتِ کم‌فروش/بدون نماینده (شاخص جمعیت، محاسبه‌شده): '+under.map(r=>r.prov+(r.idx===null?' (بدون فروش)':' ('+F.n(r.idx,2)+'×)')).join('، ')}; }
     const story7='<div class="story">'+q('۱. الان کجا هستیم؟',st.where)+q('۲. نسبت به قبل چه تغییری کرده‌ایم؟',st.change)+q('۳. چرا تغییر کرده؟',st.why)+q('۴. کدام بخش‌ها بیشترین اثر را داشته‌اند؟',st.impact)+q('۵. کجا ریسک داریم؟',st.risk)+q('۶. کجا فرصت داریم؟',opp)+q('۷. چه چیزی باید بررسی شود؟',st.check)+'</div>';
     // drivers
     const dd=pm.drivers, avail=DIMS.filter(d=>dd.available&&dd.dims[d[0]]); let dim=app.ui.driverDim; if(!avail.find(d=>d[0]===dim)) dim=avail.length?avail[0][0]:null;
@@ -3559,7 +3559,7 @@ TVL.views.forecast={render(app){
   if(mode==='next'){
     const nf=FM.compute(app.ds,app.st);
     const title=nf&&nf.products.length===1?nf.products[0]:'همه‌ی محصولات';
-    let headN='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش ماه آینده — '+esc(title)+'</b> — واحد: '+U+'. به تفکیک تک‌تک نمایندگان، بر پایه‌ی سری‌های ماهانه و Backtesting، مستقل از پیش‌بینی پایان ماه جاری.</p>'
+    let headN='<p class="sub" style="margin:-4px 0 14px"><b>پیش‌بینی فروش ماه آینده — '+esc(title)+'</b> — واحد: '+U+'. به تفکیک تک‌تک نمایندگان، بر پایه‌ی سری‌های ماهانه و ارزیابی روی داده‌ی گذشته، مستقل از پیش‌بینی پایان ماه جاری.</p>'
       +'<div class="row" style="margin:0 0 12px"><button class="btn" id="fmRefresh">↻ به‌روزرسانی پیش‌بینی ماه آینده</button></div>';
     return productFilterCtl+modeToggle+headN+(nf?renderNextMonth(app,nf):H.empty);
   }
