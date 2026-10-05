@@ -1046,7 +1046,7 @@ TVL.period = (function(){
   function monthEq(ks,to){ let s=0; ks.forEach(k=>{ const o=J.fromMonthKey(k); const ov=Math.min(to,mEnd(k))-mStart(k)+1; if(ov>0) s+=ov/J.monthLength(o.y,o.m); }); return s; }
   function monthEqRange(from,to){ const a=J.fromJdn(from),b=J.fromJdn(to); let s=0; for(let k=mk(a.y,a.m);k<=mk(b.y,b.m);k++){ const o=J.fromMonthKey(k); const ov=Math.min(to,mEnd(k))-Math.max(from,mStart(k))+1; if(ov>0) s+=ov/J.monthLength(o.y,o.m); } return s; }
 
-  function defaultPeriod(ds){ const ms=ds.meta.months; if(!ms.length) return {mode:'all',kind:'all'}; return {mode:'months',kind:'month',months:[ms[ms.length-1]]}; }
+  function defaultPeriod(ds){ const ms=ds.meta.months; if(!ms.length) return {mode:'all',kind:'all'}; let k=ms[ms.length-1]; if(ms.length>1&&isPartialMonth(ds,k)) k=ms[ms.length-2]; return {mode:'months',kind:'month',months:[k]}; }
 
   function resolve(ds,p){
     const dmin=ds.meta.dateMin,dmax=ds.meta.dateMax,have=new Set(ds.meta.months);
