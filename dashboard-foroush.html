@@ -3133,7 +3133,7 @@ TVL.views.pop={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,esc=F.esc,C=TVL.config;
   return H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
     if(!H.hasData(pm)) return H.empty;
-    const mk=TVL.market.provinces(pm); const rows=TVL.market.reps(pm,mk); const A=mk.assumption;
+    const mk=TVL.market.provinces(pm); const rows=TVL.market.reps(pm,mk).filter(r=>!/رودهن/.test(r.label)).map((r,i)=>Object.assign({},r,{rank:i+1})); const A=mk.assumption;
     const NA_MKT='<span class="flat" title="برای این محصول فرض مصرف تعریف نشده است">قابل محاسبه نیست</span>';
     const cols=[{key:'r',label:'رتبه',num:true,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},
       {key:'n',label:'نماینده',sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
@@ -3668,21 +3668,17 @@ TVL.app = (function(){
       app.tab='rp'; app.render(); check(tag+' نمایندگان',txt('.tblw[data-tbl="repTbl_'+p+'"] tr.total td.num'),tot);
       app.tab='geo'; app.render(); const g=pm.dims.province.filter(r=>r.cur>0).slice(0,15).reduce((a,r)=>a+r.cur,0); const hb=document.querySelector('#view .hbars'); check(tag+' جغرافیا',hb?hb.getAttribute('data-sum'):null,g);
       app.tab='dt'; app.render(); check(tag+' داده‌ی جزئی',txt('.tblw[data-tbl="rawTbl_'+p+'"] tr.total td.num'),tot);
-      /* The pop tab's province table deliberately excludes Tehran (per request), so its own total
-         is no longer the same invariant as every other tab's (full company total) — the correct
-         thing to check is that the DOM cell matches what TVL.market.provinces() itself computes
-         for that same exclusion, not the unfiltered company-wide total. Looked up by the cell's
-         own data-field marker rather than a fragile positional index, so column
-         reordering/removal elsewhere in this table can never silently break this check again. */
-      /* Scope-invariant check: whatever representatives are in the current filter, their
-         "سهم از فروش کل شرکت" values always sum to 100% (each one's share is of the SAME
-         filtered total pm.total.cur) — true whether unfiltered or narrowed to one province,
-         so this confirms the DOM re-rendered with the new filtered row set, same as every
-         other tab's check in this scan. Looked up by its own data-field marker, not a
-         positional column index, so future column changes to this table can't silently
-         break this check. */
+      /* The pop tab's rep table deliberately excludes the «رودهن» representative (per
+         request), so the shares shown there don't sum to 100% of pm.total.cur anymore —
+         they sum to 100% minus that rep's own share of the same total. Computed
+         independently here from pm.dims.rep (the same source TVL.market.reps() reads),
+         not hardcoded, so it stays correct if that rep's sales change. Looked up by its
+         own data-field marker, not a positional column index, so future column changes
+         to this table can't silently break this check. */
       app.tab='pop'; app.render(); const pt=document.querySelector('.tblw[data-tbl="rshareTbl_'+p+'"] tr.total td[data-field="shareSum"]');
-      check(tag+' سهم نمایندگان',pt?pt.textContent.trim():null,100);
+      const rud=pm.dims.rep.filter(r=>/رودهن/.test(r.label)).reduce((a,r)=>a+r.cur,0);
+      const popExp=tot>0?100*(1-rud/tot):100;
+      check(tag+' سهم نمایندگان',pt?pt.textContent.trim():null,popExp);
       return tot; };
     app.setFilters(s=>{ s.products=[p]; s.period={mode:'all',kind:'all'}; s.provinces=[]; s.cities=[]; s.reps=[]; });
     const base=scan('بدون فیلتر');
