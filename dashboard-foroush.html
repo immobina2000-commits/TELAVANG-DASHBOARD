@@ -192,8 +192,8 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
     <div class="logo">تلاونگ</div>
     <h2>برای ورود به داشبورد، اطلاعات ورود را وارد کنید</h2>
     <form id="authForm" autocomplete="off">
-      <input type="text" id="authUser" placeholder="نام کاربری" autocomplete="username">
-      <input type="password" id="authPass" placeholder="رمز عبور" autocomplete="current-password">
+      <input type="text" id="authUser" placeholder="نام کاربری" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <input type="password" id="authPass" placeholder="رمز عبور" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
       <button type="submit">ورود</button>
       <div class="err" id="authErr"></div>
     </form>
@@ -3748,8 +3748,8 @@ TVL.app = (function(){
     document.addEventListener('DOMContentLoaded',()=>{
       document.getElementById('authForm').addEventListener('submit',function(e){
         e.preventDefault();
-        const u=document.getElementById('authUser').value.trim();
-        const p=document.getElementById('authPass').value;
+        const u=document.getElementById('authUser').value.trim().toLowerCase();
+        const p=document.getElementById('authPass').value.trim();
         if(u===U&&p===P){ sessionStorage.setItem(KEY,'1'); unlock(); } else { denied(); }
       });
     });
