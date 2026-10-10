@@ -2575,7 +2575,13 @@ TVL.charts = (function(){
     const showVals=o.valueLabels!==false&&n<=(o.maxLabels||14)&&bw>Math.max(34,valLen*7.6+6);
     items.forEach((it,i)=>{ const h=Math.max(0,(H-pad.t-pad.b)*it.v/max),x=pad.l+i*bw,y=H-pad.b-h;
       s+='<rect class="bar '+(it.cls||'')+'" x="'+(x+bw*.14)+'" y="'+y+'" width="'+Math.max(1,bw*.72)+'" height="'+h+'" rx="2" tabindex="0" data-tip="'+esc(it.tip||(it.l+'<br><b>'+F.n(it.v)+'</b>'))+'" aria-label="'+esc(it.l+': '+F.n(it.v))+'"'+(it.color?' style="fill:'+it.color+'"':'')+'/>';
-      if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+16)+'" text-anchor="middle"'+(o.rot?' transform="rotate(-35 '+(x+bw/2)+' '+(H-pad.b+16)+')"':'')+'>'+rt(esc(it.l))+'</text>';
+      /* Rotated labels anchored "middle" are a known illusion: the pivot point is correct
+         (verified against each bar's own center), but rotating a centred span makes the text
+         visually swing toward the PREVIOUS bar, so a label can look like it belongs to the
+         wrong column even though it's mathematically under its own. Anchoring at "end" instead
+         makes the text start exactly at its own bar's tick and read outward, which is the
+         standard fix for rotated axis labels and removes the illusion. */
+      if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+16)+'" text-anchor="'+(o.rot?'end':'middle')+'"'+(o.rot?' transform="rotate(-35 '+(x+bw/2)+' '+(H-pad.b+16)+')"':'')+'>'+rt(esc(it.l))+'</text>';
       if(showVals) s+='<text class="vl" x="'+(x+bw/2)+'" y="'+(y-5)+'" text-anchor="middle">'+F.n(it.v)+'</text>'; });
     if(o.line){ let d=''; o.line.forEach((v,i)=>{ if(v===null||v===undefined) return; const x=pad.l+i*bw+bw/2,y=H-pad.b-(H-pad.t-pad.b)*v/max; d+=(d?'L':'M')+x.toFixed(1)+','+y.toFixed(1); }); s+='<path class="ln" d="'+d+'"/>'; }
     return '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.title||'نمودار میله‌ای')+'" data-sum="'+items.reduce((a,b)=>a+b.v,0)+'">'+s+'</svg>'; }; }
