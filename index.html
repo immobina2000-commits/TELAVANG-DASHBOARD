@@ -2315,17 +2315,17 @@ TVL.alerts = (function(){
             investigate:et==='rep'?['روند روزانه‌ی همین نماینده در «الگوی روز فروش» و «روند فروش»','ثبت‌شدن کامل فروش این دوره در فایل منبع','برنامه‌ی ارسال/موجودی این نماینده در دوره‌ی جاری']:['نمایندگان همین '+ENT[et]+' که بیشترین سهم افت را دارند','ثبت‌شدن کامل داده‌ی این '+ENT[et]+' در فایل منبع']}));
           if(e.growth>=T.growthAlert&&e.cur>0) out.push(mk({rule:'growth',kind:'opportunity',severity:'Info',product:pname,entityType:et,entity:e.label,metric:'رشد نسبت به دوره‌ی قبل',threshold:'≥ +'+F.pct(T.growthAlert,0),
             title:'رشد '+F.pct(e.growth,0)+' فروش '+ENT[et]+' «'+e.label+'» ('+pname+')',evidence:ev(e.cur,e.prev).concat([['مشارکت در تغییر کل',F.pct(e.contribution)]]),
-            investigate:['پایدار بودن رشد در دوره‌های بعدی یا مقطعی بودن سفارش بزرگ','ظرفیت تأمین برای ادامه‌ی این روند']})); });
+            investigate:['بررسی کنید این رشد در دوره‌های بعد هم ادامه دارد یا ناشی از یک سفارش یک‌باره بوده است','ظرفیت تأمین را برای پاسخ‌گویی پایدار به این سطح تقاضا ارزیابی کنید']})); });
       });
       // inactivity (rep / customer)
       [['rep','rep','repInactive'],['customer','customer','custInactive']].forEach(([dk,et,rule])=>{ if(!pm.dims[dk]) return;
         pm.dims[dk].forEach(e=>{ if(e.key===NULLV) return;
           if(hasPrev&&e.cur===0&&e.prev>0){ const sh=ptot>0?e.prev/ptot:0; out.push(mk({rule,product:pname,entityType:et,entity:e.label,severity:sh>=T.highPriorityShare?'High':'Medium',metric:'فروش دوره‌ی جاری = ۰ با فروش قبلی',threshold:'فروش قبلی > ۰ و فعلی = ۰',
             title:'توقف فروش '+ENT[et]+' «'+e.label+'» ('+pname+')',evidence:[['قبلی',F.n(e.prev)],['فعلی',F.n(0)],['سهم در دوره‌ی قبل',F.pct(sh)],['آخرین فروش',F.date(e.lastJdn)]],
-            investigate:['ثبت‌نشدن فروش در فایل منبع','کمبود موجودی یا توقف همکاری','ارتباط مستقیم با '+ENT[et]]})); }
+            investigate:['مطمئن شوید فروش این دوره در فایل منبع ثبت شده باشد','وضعیت موجودی و ادامه‌ی همکاری را بررسی کنید','مستقیماً با '+ENT[et]+' تماس بگیرید']})); }
           else if(e.cur>0&&e.gapDays!==null&&e.gapDays>=T.inactivityDays) out.push(mk({rule,product:pname,entityType:et,entity:e.label,severity:'Medium',metric:'روز از آخرین فروش تا پایان بازه‌ی داده',threshold:'≥ '+F.n(T.inactivityDays)+' روز',
             title:'وقفه‌ی '+F.n(e.gapDays)+' روزه در فروش '+ENT[et]+' «'+e.label+'» ('+pname+')',evidence:[['آخرین فروش',F.date(e.lastJdn)],['وقفه (روز)',F.n(e.gapDays)],['فروش دوره',F.n(e.cur)]],
-            investigate:['سفارش بعدی برنامه‌ریزی شده است؟','ثبت‌نشدن فروش‌های اخیر در فایل منبع']})); }); });
+            investigate:['بررسی کنید سفارش بعدی برنامه‌ریزی شده است یا نه','مطمئن شوید فروش‌های اخیر در فایل منبع ثبت شده باشد']})); }); });
       // spikes (business) — per rep on positive history
       const byRep=new Map(); pm.base.forEach(r=>{ if(r.v>0&&r.jdn<=per.to&&r.representative){ if(!byRep.has(r.representative)) byRep.set(r.representative,[]); byRep.get(r.representative).push(r); } });
       byRep.forEach((arr,name)=>{ if(arr.length<T.anomalyMinSamples) return; arr.sort((a,b)=>a.jdn-b.jdn); const vals=arr.map(r=>r.v);
@@ -2334,19 +2334,19 @@ TVL.alerts = (function(){
         else { const o=outlierFence(vals,T.anomalyMethod); desc=o.desc; arr.forEach(r=>{ if(r.v>o.fence&&r.v>o.med*T.anomalyMinRatioToMedian) flagged.push({r,fence:o.fence,med:o.med}); }); }
         flagged.filter(x=>x.r.jdn>=per.from&&x.r.jdn<=per.to).forEach(x=>out.push(mk({rule:'spike',product:pname,entityType:'rep',entity:name,severity:'Medium',metric:'مقدار یک روز نسبت به تاریخچه‌ی همان نماینده',threshold:desc+' (روش '+T.anomalyMethod+')',
           title:'جهش فروش «'+name+'» در '+F.dateLong(x.r.jdn)+' ('+pname+')',evidence:[['مقدار',F.n(x.r.v)],['میانه‌ی روزهای فعال',F.n(x.med)],['برابر میانه',F.n(x.r.v/x.med,1)+'×'],['آستانه',F.n(x.fence)],['خانه‌ی منبع',x.r.sourceSheet+' / '+x.r.sourceCell]],
-          investigate:['سفارش واقعاً بزرگ بوده یا چند روز یک‌جا ثبت شده','اشتباه تایپی در خانه‌ی '+x.r.sourceCell]}))); });
+          investigate:['بررسی کنید سفارش واقعاً به این بزرگی بوده یا فروش چند روز یک‌جا ثبت شده است','خانه‌ی '+x.r.sourceCell+' را از نظر اشتباه تایپی بررسی کنید']}))); });
       // abnormal daily total (business)
       (function(){ const m=new Map(); pm.base.forEach(r=>{ if(r.jdn<=per.to) m.set(r.jdn,(m.get(r.jdn)||0)+r.v); }); const days=[...m].filter(([j,v])=>v>0); if(days.length<T.anomalyMinSamples) return;
         const o=outlierFence(days.map(x=>x[1]),T.anomalyMethod==='ZSCORE'?'ZSCORE':'IQR'); days.filter(([j,v])=>j>=per.from&&j<=per.to&&v>o.fence).forEach(([j,v])=>out.push(mk({rule:'abnormalDay',product:pname,entityType:'product',entity:pname,severity:'Low',metric:'جمع روزانه‌ی همه‌ی نمایندگان',threshold:o.desc,
-          title:'جمع روزانه‌ی غیرعادی '+F.dateLong(j)+' ('+pname+')',evidence:[['جمع آن روز',F.n(v)],['میانه‌ی روزهای فعال',F.n(o.med)],['آستانه',F.n(o.fence)]],investigate:['نماینده‌هایی که در آن روز سهم بیشتری داشته‌اند','ثبت تجمعی چند روز در یک تاریخ']}))); })();
+          title:'جمع روزانه‌ی غیرعادی '+F.dateLong(j)+' ('+pname+')',evidence:[['جمع آن روز',F.n(v)],['میانه‌ی روزهای فعال',F.n(o.med)],['آستانه',F.n(o.fence)]],investigate:['نمایندگانی که سهم بیشتری در فروش آن روز داشته‌اند را بررسی کنید','احتمال ثبت تجمعی چند روز در یک تاریخ را بررسی کنید']}))); })();
       // concentration
       const reps=pm.dims.rep.filter(e=>e.cur>0); if(reps.length>2&&pm.total.cur>0&&reps[0].share>T.concentrationTop1Share){ const top3=reps.slice(0,3).reduce((s,e)=>s+e.cur,0)/pm.total.cur;
         out.push(mk({rule:'concentration',product:pname,entityType:'rep',entity:reps[0].label,severity:'Medium',metric:'سهم نماینده‌ی اول از کل فروش دوره',threshold:'> '+F.pct(T.concentrationTop1Share,0),
           title:'تمرکز فروش ('+pname+'): «'+reps[0].label+'» '+F.pct(reps[0].share)+' از کل',evidence:[['سهم نفر اول',F.pct(reps[0].share)],['سهم سه نفر اول',F.pct(top3)],['تعداد نماینده‌ی فعال',F.n(reps.length)]],
-          investigate:['برنامه‌ی پشتیبان تأمین/پیگیری برای نمایندگان پرسهم','ریسک وابستگی به یک نماینده']})); }
+          investigate:['برای نماینده(های) پرسهم یک برنامه‌ی پشتیبان تأمین/پیگیری آماده کنید','ریسک وابستگی زیاد فروش به یک نماینده را برای مدیریت مستند کنید']})); }
       // missing data
       if(per.months&&per.months.length&&per.kind!=='all'){ const have=new Set(pm.base.map(r=>J.monthKey(r.year,r.month))); const miss=per.months.filter(k=>!have.has(k));
-        if(miss.length) out.push(mk({rule:'missingData',product:pname,entityType:'product',entity:pname,severity:'Medium',metric:'ماه‌های بازه بدون هیچ رکورد',threshold:'≥ ۱ ماه بدون داده',title:'ماه بدون داده در بازه‌ی انتخابی ('+pname+')',evidence:[['ماه‌ها',miss.map(k=>TVL.period.label(k)).join('، ')]],investigate:['دریافت فایل کامل‌تر از سیستم BI']})); }
+        if(miss.length) out.push(mk({rule:'missingData',product:pname,entityType:'product',entity:pname,severity:'Medium',metric:'ماه‌های بازه بدون هیچ رکورد',threshold:'≥ ۱ ماه بدون داده',title:'ماه بدون داده در بازه‌ی انتخابی ('+pname+')',evidence:[['ماه‌ها',miss.map(k=>TVL.period.label(k)).join('، ')]],investigate:['فایل کامل‌تری شامل این ماه را از سیستم فروش دریافت کنید']})); }
       // sudden pattern shift
       (function(){ const lastK=per.months&&per.months.length?per.months[per.months.length-1]:null; if(lastK===null) return; const byRM=new Map();
         pm.base.forEach(r=>{ if(!r.representative) return; const k=r.representative+'|'+J.monthKey(r.year,r.month); if(!byRM.has(k)) byRM.set(k,[]); byRM.get(k).push(r); });
@@ -2355,10 +2355,10 @@ TVL.alerts = (function(){
           const top=arr=>{ const c=[0,0,0,0,0,0,0]; arr.forEach(r=>c[r.weekday]++); const mx=Math.max(...c); return {i:c.indexOf(mx),share:mx/arr.length}; };
           const a=top(A),b=top(B); if(a.share>=T.patternShiftConcentration&&b.share>=T.patternShiftConcentration&&a.i!==b.i)
             out.push(mk({rule:'patternShift',product:pname,entityType:'rep',entity:n,severity:'Low',metric:'روز غالب دو ماه پیاپی',threshold:'تمرکز ≥ '+F.pct(T.patternShiftConcentration,0)+' در هر دو ماه',title:'تغییر روز غالب «'+n+'» ('+pname+')',
-              evidence:[['ماه قبل',C.weekdays[a.i]+' ('+F.pct(a.share,0)+')'],['ماه جاری',C.weekdays[b.i]+' ('+F.pct(b.share,0)+')']],investigate:['تغییر برنامه‌ی ارسال/ویزیت این نماینده']})); }); })();
+              evidence:[['ماه قبل',C.weekdays[a.i]+' ('+F.pct(a.share,0)+')'],['ماه جاری',C.weekdays[b.i]+' ('+F.pct(b.share,0)+')']],investigate:['برنامه‌ی ارسال/ویزیت این نماینده را بررسی و در صورت نیاز به‌روزرسانی کنید']})); }); })();
     });
     // data-quality alerts
-    ds.dq.issues.filter(i=>i.sev==='Critical'||i.sev==='High').forEach(i=>out.push(mk({rule:'dq',kind:'data',severity:i.sev==='Critical'?'High':'Medium',entityType:'dataset',entity:i.title,metric:'کنترل کیفیت داده',threshold:(i.sev==='Critical'?'بحرانی':'بالا')+' طبق مرکز کیفیت داده',title:i.title,evidence:[['جزئیات',i.detail],['تعداد',F.n(i.count)]],investigate:['بررسی در «ابزار تحلیلگر ← کیفیت داده»'],cause:'این یک مسئله‌ی کیفیت داده است، نه یک رویداد کسب‌وکاری.'})));
+    ds.dq.issues.filter(i=>(i.sev==='Critical'||i.sev==='High')&&i.code!=='dupBlock').forEach(i=>out.push(mk({rule:'dq',kind:'data',severity:i.sev==='Critical'?'High':'Medium',entityType:'dataset',entity:i.title,metric:'کنترل کیفیت داده',threshold:(i.sev==='Critical'?'بحرانی':'بالا')+' طبق مرکز کیفیت داده',title:i.title,evidence:[['جزئیات',i.detail],['تعداد',F.n(i.count)]],investigate:['جزئیات را در «ابزار تحلیلگر ← کیفیت داده» بررسی کنید'],cause:'این یک مسئله‌ی کیفیت داده است، نه یک رویداد کسب‌وکاری.'})));
     out.sort((a,b)=>(a.kind==='opportunity')-(b.kind==='opportunity')||SEVORD[a.severity]-SEVORD[b.severity]);
     return out;
   }
@@ -2555,7 +2555,16 @@ TVL.charts = (function(){
 
   function bar(items,o){ o=o||{}; return W=>{
     if(!items.length) return EMPTY; const H=o.H||240; let mx=Math.max(...items.map(i=>i.v),...(o.line||[]).filter(x=>x!==null&&x!==undefined),0); const max=nice(mx*1.06||1);
-    const pad={l:padL(max),r:14,t:22,b:o.rot?52:34}; const n=items.length, bw=(W-pad.l-pad.r)/n; const step=Math.max(1,Math.ceil(n*(o.labelW||46)/(W-pad.l-pad.r)));
+    const pad={l:padL(max),r:14,t:22,b:o.rot?52:34}; const n=items.length, bw=(W-pad.l-pad.r)/n;
+    /* Rotated category labels (rep names, etc.) can run far longer than any caller-supplied
+       labelW guess — if the label-spacing budget is too small, rotated text from neighbouring
+       bars visually overlaps/collides into each other's column. Estimate each label's real
+       rendered footprint from its own character count (Persian text ≈ monospace at this
+       font-size; a -35° rotation shrinks the horizontal footprint by cos(35°) ≈ 0.82) and widen
+       the budget to whichever is larger — the caller's hint or the measured real need. */
+    const labLen=o.rot?Math.max(...items.map(i=>(i.l||'').length),1):0;
+    const effLabelW=o.rot?Math.max(o.labelW||46,labLen*6.3*0.82+10):(o.labelW||46);
+    const step=Math.max(1,Math.ceil(n*effLabelW/(W-pad.l-pad.r)));
     let s=axisY(W,H,pad,max,4);
     /* Value labels must never collide: estimate each number's rendered width from its digit/
        separator count (Persian numerals ≈ monospace at this font-size) and only show them when
@@ -2928,7 +2937,14 @@ TVL.views.overview={render(app){
   return head+H.blocks(mt,(pm,p)=>{
     if(!H.hasData(pm)&&!pm.prev) return H.empty;
     const st=story.find(x=>x.product===p); const q=(t,o)=>'<div class="q"><h3>'+t+'</h3>'+(o?'<div class="f">'+esc(o.fact)+'</div><div class="e">'+esc(o.evidence||'')+'</div>'+(o.interp?'<div class="e">'+esc(o.interp)+'</div>':''):'<div class="f flat">داده کافی نیست</div><div class="e">'+esc(mt.period.note||'داده‌ی کافی برای این پرسش نیست.')+'</div>')+'</div>';
-    let opp=st.opportunity; const mk=C.market.assumptions[p]?TVL.market.provinces(pm):null;
+    let opp=st.opportunity;
+    /* The "which provinces have no rep / are under-served" enrichment only makes sense against
+       the WHOLE network for this product — filtered to a single rep (or province/city/customer/
+       channel), every OTHER province looks like "zero sales, no rep" purely because the filter
+       hid it, not because it's actually unserved, which made «۶. کجا فرصت داریم؟» report nonsense
+       under a rep filter. Only compute it when nothing narrows the population, same guard used
+       elsewhere (TVL.historical.isWholeNetwork) for exactly this kind of population mismatch. */
+    const mk=(C.market.assumptions[p]&&TVL.historical.isWholeNetwork(app.st))?TVL.market.provinces(pm):null;
     if(mk){ const under=mk.rows.filter(r=>r.idx!==null&&r.idx<C.market.underIndex||(r.sales===0&&!r.hasRep)).sort((a,b)=>b.pop-a.pop).slice(0,3); if(under.length) opp={fact:opp.fact,evidence:(opp.evidence!=='—'?opp.evidence+' | ':'')+'استان‌های پرجمعیتِ کم‌فروش/بدون نماینده (شاخص جمعیت، محاسبه‌شده): '+under.map(r=>r.prov+(r.idx===null?' (بدون فروش)':' ('+F.n(r.idx,2)+'×)')).join('، ')}; }
     const story7='<div class="story">'+q('۱. الان کجا هستیم؟',st.where)+q('۲. نسبت به قبل چه تغییری کرده‌ایم؟',st.change)+q('۳. چرا تغییر کرده؟',st.why)+q('۴. کدام بخش‌ها بیشترین اثر را داشته‌اند؟',st.impact)+q('۵. کجا ریسک داریم؟',st.risk)+q('۶. کجا فرصت داریم؟',opp)+q('۷. چه چیزی باید بررسی شود؟',st.check)+'</div>';
     // drivers
@@ -3160,23 +3176,25 @@ TVL.views.buyday={render(app){
    being accurate. ===== */
 TVL.views.pop={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,esc=F.esc,C=TVL.config;
-  return H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
-    if(!H.hasData(pm)) return H.empty;
-    const mk=TVL.market.provinces(pm); const rows=TVL.market.reps(pm,mk).filter(r=>!/رودهن/.test(r.label)).map((r,i)=>Object.assign({},r,{rank:i+1})); const A=mk.assumption;
-    const NA_MKT='<span class="flat" title="برای این محصول فرض مصرف تعریف نشده است">قابل محاسبه نیست</span>';
-    const cols=[{key:'r',label:'رتبه',num:true,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},
-      {key:'n',label:'نماینده',sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
-      {key:'p',label:'استان',sortVal:r=>r.province||'',cell:r=>esc(r.province||'نامشخص'),csv:r=>r.province},
-      {key:'pop',label:'جمعیت استان',num:true,sortVal:r=>r.pop,cell:r=>r.pop===null?'<span class="flat">نامشخص</span>':F.n(r.pop),csv:r=>r.pop},
-      {key:'s',label:'فروش نماینده',num:true,sortVal:r=>r.cur,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},
-      {key:'sc',label:'سهم از فروش کل شرکت',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share},
-      {key:'sp',label:'سهم از فروش همان استان',num:true,sortVal:r=>r.provShare,cell:r=>r.provShare===null?'<span class="flat">قابل محاسبه نیست</span>':F.pct(r.provShare),csv:r=>r.provShare},
-      {key:'m',label:'بازار برآوردی استان',num:true,sortVal:r=>A&&r.market!==null?r.market:-1,cell:r=>(A&&r.market!==null)?F.n(Math.round(r.market)):NA_MKT,csv:r=>(A&&r.market!==null)?r.market:'',csvLabel:'بازار برآوردی استان'},
-      {key:'ms',label:'سهم بازار استانی',num:true,sortVal:r=>A&&r.mShare!==null?r.mShare:-1,cell:r=>(A&&r.mShare!==null)?F.pct(r.mShare,2):NA_MKT,csv:r=>(A&&r.mShare!==null)?r.mShare:'',csvLabel:'سهم بازار استانی'}];
-    const marketNote=A?(' بازار برآوردی استان = جمعیت استان × '+F.n(A.perCapitaMonthly)+' عدد/نفر/ماه × '+F.pct(A.packagedShare,0)+' بسته‌بندی × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره). سهم بازار استانی = فروش این نماینده ÷ همان بازار برآوردی (فرض بر این‌که فروش نمایندگان تماماً تخم‌مرغ بسته‌بندی است).'):(' برای «'+esc(p)+'» فرض مصرفی تعریف نشده، پس دو ستون آخر «قابل محاسبه نیست» است.');
-    return H.panel('سهم هر نماینده در استان ('+esc(mt.period.label)+')','جمعیت استان = جمعیت کل استانی که این نماینده در آن است. سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر. سهم از فروش همان استان = فروش این نماینده ÷ جمع فروش همه‌ی نمایندگان همان استان (وقتی چند نماینده در یک استان‌اند).'+marketNote,
-      UI.table('rshareTbl_'+p,{cols:cols,rows:rows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')).includes(q),exportName:'rep-share-'+p,sort:['sc',-1],
-        footer:rs=>'<td colspan="4">جمع</td><td class="num">'+F.n(rs.reduce((s,r)=>s+r.cur,0))+'</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td><td></td><td></td>'})); });
+  const EGG='تخم‌مرغ';
+  if(!mt.products.includes(EGG)) return H.periodNote(mt)+H.panel('سهم هر نماینده در استان','',
+    '<div class="empty">این تب فقط برای «تخم‌مرغ» محاسبه می‌شود (برای محصولات دیگر فرضی برای مصرف سرانه تعریف نشده و سهم بازار قابل محاسبه نیست). برای دیدن این گزارش، فیلتر محصول را روی «تخم‌مرغ» بگذارید.</div>');
+  const pm=mt.by[EGG],p=EGG;
+  if(!H.hasData(pm)) return H.periodNote(mt)+H.empty;
+  const mk=TVL.market.provinces(pm); const rows=TVL.market.reps(pm,mk).filter(r=>!/رودهن/.test(r.label)).map((r,i)=>Object.assign({},r,{rank:i+1})); const A=mk.assumption;
+  const NA_MKT='<span class="flat" title="برای این محصول فرض مصرف تعریف نشده است">قابل محاسبه نیست</span>';
+  const cols=[{key:'r',label:'رتبه',num:true,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},
+    {key:'n',label:'نماینده',sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
+    {key:'p',label:'استان',sortVal:r=>r.province||'',cell:r=>esc(r.province||'نامشخص'),csv:r=>r.province},
+    {key:'pop',label:'جمعیت استان',num:true,sortVal:r=>r.pop,cell:r=>r.pop===null?'<span class="flat">نامشخص</span>':F.n(r.pop),csv:r=>r.pop},
+    {key:'s',label:'فروش نماینده',num:true,sortVal:r=>r.cur,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},
+    {key:'sc',label:'سهم از فروش کل شرکت',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share},
+    {key:'m',label:'بازار برآوردی استان',num:true,sortVal:r=>A&&r.market!==null?r.market:-1,cell:r=>(A&&r.market!==null)?F.n(Math.round(r.market)):NA_MKT,csv:r=>(A&&r.market!==null)?r.market:'',csvLabel:'بازار برآوردی استان'},
+    {key:'ms',label:'سهم بازار استانی',num:true,sortVal:r=>A&&r.mShare!==null?r.mShare:-1,cell:r=>(A&&r.mShare!==null)?F.pct(r.mShare,2):NA_MKT,csv:r=>(A&&r.mShare!==null)?r.mShare:'',csvLabel:'سهم بازار استانی'}];
+  const marketNote=A?(' بازار برآوردی استان = جمعیت استان × '+F.n(A.perCapitaMonthly)+' عدد/نفر/ماه × '+F.pct(A.packagedShare,0)+' بسته‌بندی × '+F.n(mk.nMonths,mk.nMonths%1?1:0)+' ماه (متناسب با طول همین دوره). سهم بازار استانی = فروش این نماینده ÷ همان بازار برآوردی (فرض بر این‌که فروش نمایندگان تماماً تخم‌مرغ بسته‌بندی است).'):(' برای «'+esc(p)+'» فرض مصرفی تعریف نشده، پس دو ستون آخر «قابل محاسبه نیست» است.');
+  return H.periodNote(mt)+H.panel('سهم هر نماینده در استان ('+esc(mt.period.label)+')','جمعیت استان = جمعیت کل استانی که این نماینده در آن است. سهم از فروش کل شرکت = فروش این نماینده ÷ فروش کل شرکت در همین فیلتر.'+marketNote,
+    UI.table('rshareTbl_'+p,{cols:cols,rows:rows,pageSize:25,search:(r,q)=>(r.label+(r.province||'')).includes(q),exportName:'rep-share-'+p,sort:['sc',-1],
+      footer:rs=>'<td colspan="4">جمع</td><td class="num">'+F.n(rs.reduce((s,r)=>s+r.cur,0))+'</td><td class="num" data-field="shareSum">'+F.pct(rs.reduce((s,r)=>s+(r.share||0),0),0)+'</td><td></td><td></td><td></td>'}));
 }};
 
 /* ---------- views/alerts-view.js ---------- */
@@ -3203,10 +3221,10 @@ TVL.views.al={render(app){
     return '<div class="alert '+sevCls(a)+'"><h3>'+esc(a.title)+'</h3><div class="meta">'+sevBadge+' '+esc(a.ruleLabel)+' · '+esc(TVL.alerts.ENT[a.entityType]||a.entityType)+': '+esc(a.entity)+(a.product?' · '+esc(a.product):'')+'</div>'
       +(why(a)?'<div style="margin-top:6px">'+esc(why(a))+'</div>':'')
       +(a.investigate.length?'<div style="margin-top:6px"><b>چه کاری انجام شود؟</b><ul>'+a.investigate.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'')
-      +'<div class="sub" style="margin-top:6px">'+esc(a.cause)+'</div>'
+      +(a.cause!==TVL.alerts.CAUSE?'<div class="sub" style="margin-top:6px">'+esc(a.cause)+'</div>':'')
       +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">جزئیات فنی (برای تحلیلگر)</summary><div style="margin-top:6px"><dl><dt>معیار</dt><dd>'+esc(a.metric)+'</dd><dt>آستانه (قاعده‌ی دقیقی که این هشدار را صادر کرد)</dt><dd>'+esc(a.threshold)+'</dd></dl><div><b>شواهد</b><dl>'+a.evidence.map(e=>'<dt>'+esc(e[0])+'</dt><dd>'+esc(e[1])+'</dd>').join('')+'</dl></div></div></details></div>'; };
   const risks=list.filter(a=>a.kind!=='opportunity'), opps=list.filter(a=>a.kind==='opportunity');
-  return H.periodNote(app.mt)+H.panel('مرکز هشدار — '+esc(app.mt.period.label),'هر کارت یک هشدار است: چرا مهم است و چه کاری باید انجام شود. جزئیات فنی (معیار دقیق و شواهد عددی) زیر هر کارت، در بخش «برای تحلیلگر»، با یک کلیک قابل مشاهده است. علت فقط وقتی گفته می‌شود که در داده مستند باشد؛ در غیر این صورت صریحاً «قابل تشخیص نیست» نوشته می‌شود.',ctl)
+  return H.periodNote(app.mt)+H.panel('مرکز هشدار — '+esc(app.mt.period.label),'هر کارت یک هشدار است: چرا مهم است و چه کاری باید انجام شود. جزئیات فنی (معیار دقیق و شواهد عددی) زیر هر کارت، در بخش «برای تحلیلگر»، با یک کلیک قابل مشاهده است.',ctl)
     +(risks.length?H.panel('ریسک‌ها و موارد نیازمند بررسی ('+F.n(risks.length)+')','',risks.map(card).join('')):'<div class="panel"><div class="empty">هشداری با این فیلتر وجود ندارد.</div></div>')
     +(opps.length?H.panel('فرصت‌ها ('+F.n(opps.length)+')','',opps.map(card).join('')):'');
 },bind(app,root){ const g=()=>({sev:root.querySelector('#afSev').value,kind:root.querySelector('#afKind').value,rule:root.querySelector('#afRule').value});
@@ -3438,7 +3456,6 @@ TVL.views.forecast={render(app){
           +TVL.kpi.card({label:'پیش‌بینی کل '+p+' برای ماه آینده',raw:'<b>'+F.n(Math.round(recVal))+'</b>'+U_small,extra:recLabel+' — '+n.recommendReason})
           +TVL.kpi.card({label:'میزان اطمینان (کل شبکه)',raw:d.status==='Forecasted'?confBadge(d.confidence.level):'<span class="flat">—</span>',extra:d.status==='Forecasted'?d.confidence.reason:''})
           +TVL.kpi.card({label:'تعداد نمایندگان دارای پیش‌بینی',raw:F.n(forecastedReps.length)+' <small>از '+F.n(nf.reps.length)+'</small>'})
-          +TVL.kpi.card({label:'الگوی فصلی',raw:d.status==='Forecasted'?esc(d.seasonality.label):'<span class="flat">—</span>',extra:d.status==='Forecasted'?d.seasonality.reason:''})
         +'</div>'
         +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">جزئیات بیشتر (برای تحلیلگر)</summary><div class="kpis" style="margin-top:8px">'
           +TVL.kpi.card({label:'میانگین پیش‌بینی هر نماینده',raw:avgRep!==null?(F.n(Math.round(avgRep))+U_small):'<span class="flat">—</span>'})
@@ -3513,12 +3530,6 @@ TVL.views.forecast={render(app){
       ['روش‌های بررسی‌شده','چند روش آماری متفاوت (از میانگین ساده تا روش‌های حساس به روند و تقاضای نامنظم) روی داده‌ی هر سری امتحان می‌شود و روشی که در آزمون روی ماه‌های گذشته دقیق‌تر بوده انتخاب می‌شود؛ از جمله «همان ماه سال قبل» وقتی حداقل ۱۲ ماه سابقه در دسترس باشد.'],
       ['روش ارزیابی دقت','هر روش روی تمام ماه‌های کامل گذشته آزمایش می‌شود، طوری که هیچ‌وقت به داده‌ی بعد از نقطه‌ای که شبیه‌سازی می‌شود دسترسی نداشته باشد — دقیقاً مثل اینکه واقعاً در آن ماه پیش‌بینی شده باشد.'],
       ['معیار انتخاب روش','کمترین میزان خطا در آزمون روی گذشته؛ در تساوی نزدیک، ساده‌ترین روش انتخاب می‌شود تا پیش‌بینی روی سری‌های کوتاه بیش‌برازش نشود.'],
-      ['الگوی فصلی',(function(){
-        const egg=nf.network['تخم‌مرغ']&&nf.network['تخم‌مرغ'].direct;
-        if(egg&&egg.usedExtendedHistory&&egg.status==='Forecasted')
-          return 'برای تخم‌مرغ (کل شبکه)، با سابقه‌ی تاریخیِ چندساله: <b>'+esc(egg.seasonality.label)+'</b> — '+esc(egg.seasonality.reason);
-        return 'برای سری‌هایی با کمتر از ۱۲ ماه سابقه (اکثر نمایندگان و محصولاتی بدون سابقه‌ی تاریخیِ اضافه)، فصلی/الگوی ماهانه ادعا نمی‌شود (هرگز ساختگی تولید نمی‌شود). برای «تخم‌مرغ / کل شبکه» با افزودن سابقه‌ی چندساله، این محدودیت واقعاً برطرف و الگوی فصلی به‌صورت واقعی بررسی می‌شود.';
-      })()],
       ['سابقه‌ی تاریخیِ اضافه (تخم‌مرغ/کل شبکه)',TVL.historical.hasHistory('تخم‌مرغ')
         ?('از سال '+F.n(TVL.historical.yearRange('تخم‌مرغ').min)+' تا '+F.n(TVL.historical.yearRange('تخم‌مرغ').max)+' («قبل از ۱۴۰۵»، تا با داده‌ی تفصیلیِ نمایندگان هم‌پوشانی/دوبار-شماری نداشته باشد)، فقط برای پیش‌بینی «کل شبکه»‌ی تخم‌مرغ و فقط وقتی هیچ فیلتر استان/شهر/نماینده/مشتری/کانالی فعال نیست؛ تلابار و تک‌تک نمایندگان از این افزونه استفاده نمی‌کنند.')
         :'—'],
@@ -3704,10 +3715,15 @@ TVL.app = (function(){
          not hardcoded, so it stays correct if that rep's sales change. Looked up by its
          own data-field marker, not a positional column index, so future column changes
          to this table can't silently break this check. */
-      app.tab='pop'; app.render(); const pt=document.querySelector('.tblw[data-tbl="rshareTbl_'+p+'"] tr.total td[data-field="shareSum"]');
-      const rud=pm.dims.rep.filter(r=>/رودهن/.test(r.label)).reduce((a,r)=>a+r.cur,0);
-      const popExp=tot>0?100*(1-rud/tot):100;
-      check(tag+' سهم نمایندگان',pt?pt.textContent.trim():null,popExp);
+      /* pop tab (سهم هر نماینده در استان) now renders only for تخم‌مرغ — for every other
+         product it shows an explanatory empty state instead of a table, so this check only
+         applies when p is تخم‌مرغ (matching that same restriction, not a separate rule). */
+      if(p==='تخم‌مرغ'){
+        app.tab='pop'; app.render(); const pt=document.querySelector('.tblw[data-tbl="rshareTbl_'+p+'"] tr.total td[data-field="shareSum"]');
+        const rud=pm.dims.rep.filter(r=>/رودهن/.test(r.label)).reduce((a,r)=>a+r.cur,0);
+        const popExp=tot>0?100*(1-rud/tot):100;
+        check(tag+' سهم نمایندگان',pt?pt.textContent.trim():null,popExp);
+      }
       return tot; };
     app.setFilters(s=>{ s.products=[p]; s.period={mode:'all',kind:'all'}; s.provinces=[]; s.cities=[]; s.reps=[]; });
     const base=scan('بدون فیلتر');
