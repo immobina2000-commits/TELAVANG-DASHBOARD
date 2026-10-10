@@ -2334,7 +2334,7 @@ TVL.alerts = (function(){
         else { const o=outlierFence(vals,T.anomalyMethod); desc=o.desc; arr.forEach(r=>{ if(r.v>o.fence&&r.v>o.med*T.anomalyMinRatioToMedian) flagged.push({r,fence:o.fence,med:o.med}); }); }
         flagged.filter(x=>x.r.jdn>=per.from&&x.r.jdn<=per.to).forEach(x=>out.push(mk({rule:'spike',product:pname,entityType:'rep',entity:name,severity:'Medium',metric:'مقدار یک روز نسبت به تاریخچه‌ی همان نماینده',threshold:desc+' (روش '+T.anomalyMethod+')',
           title:'جهش فروش «'+name+'» در '+F.dateLong(x.r.jdn)+' ('+pname+')',evidence:[['مقدار',F.n(x.r.v)],['میانه‌ی روزهای فعال',F.n(x.med)],['برابر میانه',F.n(x.r.v/x.med,1)+'×'],['آستانه',F.n(x.fence)],['خانه‌ی منبع',x.r.sourceSheet+' / '+x.r.sourceCell]],
-          investigate:['بررسی کنید سفارش واقعاً به این بزرگی بوده یا فروش چند روز یک‌جا ثبت شده است','خانه‌ی '+x.r.sourceCell+' را از نظر اشتباه تایپی بررسی کنید']}))); });
+          investigate:['بررسی کنید سفارش واقعاً به این بزرگی بوده یا فروش چند روز یک‌جا ثبت شده است']}))); });
       // abnormal daily total (business)
       (function(){ const m=new Map(); pm.base.forEach(r=>{ if(r.jdn<=per.to) m.set(r.jdn,(m.get(r.jdn)||0)+r.v); }); const days=[...m].filter(([j,v])=>v>0); if(days.length<T.anomalyMinSamples) return;
         const o=outlierFence(days.map(x=>x[1]),T.anomalyMethod==='ZSCORE'?'ZSCORE':'IQR'); days.filter(([j,v])=>j>=per.from&&j<=per.to&&v>o.fence).forEach(([j,v])=>out.push(mk({rule:'abnormalDay',product:pname,entityType:'product',entity:pname,severity:'Low',metric:'جمع روزانه‌ی همه‌ی نمایندگان',threshold:o.desc,
@@ -3224,16 +3224,17 @@ TVL.views.al={render(app){
      list (if any) and the honest "علت" line. The old card also repeated the title verbatim under
      "چه اتفاقی افتاد؟" (pure duplication) and put معیار/آستانه/شواهد — raw rule internals meant for
      someone auditing the rule, not reading the alert — in the same flat list as the readable parts.
-     Those now live in a collapsed "جزئیات فنی (برای تحلیلگر)" section, one click away but not in
-     the way of a manager scanning many cards. */
+     Those technical fields (معیار/آستانه/شواهد) are no longer shown on the card at all —
+     a manager never needs them, and the one person who might (an analyst auditing a rule)
+     has the underlying config/code anyway, so there is no reader this helped vs. just noise. */
   const card=a=>{ const sevBadge=a.kind==='opportunity'?'<span class="tag t-pos">فرصت</span>':'<span class="tag t-'+({High:'high',Medium:'med',Low:'low',Info:'sugg'}[a.severity])+'">'+SEV_LABEL[a.severity]+'</span>';
     return '<div class="alert '+sevCls(a)+'"><h3>'+esc(a.title)+'</h3><div class="meta">'+sevBadge+' '+esc(a.ruleLabel)+' · '+esc(TVL.alerts.ENT[a.entityType]||a.entityType)+': '+esc(a.entity)+(a.product?' · '+esc(a.product):'')+'</div>'
       +(why(a)?'<div style="margin-top:6px">'+esc(why(a))+'</div>':'')
       +(a.investigate.length?'<div style="margin-top:6px"><b>چه کاری انجام شود؟</b><ul>'+a.investigate.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'')
       +(a.cause!==TVL.alerts.CAUSE?'<div class="sub" style="margin-top:6px">'+esc(a.cause)+'</div>':'')
-      +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">جزئیات فنی (برای تحلیلگر)</summary><div style="margin-top:6px"><dl><dt>معیار</dt><dd>'+esc(a.metric)+'</dd><dt>آستانه (قاعده‌ی دقیقی که این هشدار را صادر کرد)</dt><dd>'+esc(a.threshold)+'</dd></dl><div><b>شواهد</b><dl>'+a.evidence.map(e=>'<dt>'+esc(e[0])+'</dt><dd>'+esc(e[1])+'</dd>').join('')+'</dl></div></div></details></div>'; };
+      +'</div>'; };
   const risks=list.filter(a=>a.kind!=='opportunity'), opps=list.filter(a=>a.kind==='opportunity');
-  return H.periodNote(app.mt)+H.panel('مرکز هشدار — '+esc(app.mt.period.label),'هر کارت یک هشدار است: چرا مهم است و چه کاری باید انجام شود. جزئیات فنی (معیار دقیق و شواهد عددی) زیر هر کارت، در بخش «برای تحلیلگر»، با یک کلیک قابل مشاهده است.',ctl)
+  return H.periodNote(app.mt)+H.panel('مرکز هشدار — '+esc(app.mt.period.label),'هر کارت یک هشدار است: چرا مهم است و چه کاری باید انجام شود.',ctl)
     +(risks.length?H.panel('ریسک‌ها و موارد نیازمند بررسی ('+F.n(risks.length)+')','',risks.map(card).join('')):'<div class="panel"><div class="empty">هشداری با این فیلتر وجود ندارد.</div></div>')
     +(opps.length?H.panel('فرصت‌ها ('+F.n(opps.length)+')','',opps.map(card).join('')):'');
 },bind(app,root){ const g=()=>({sev:root.querySelector('#afSev').value,kind:root.querySelector('#afKind').value,rule:root.querySelector('#afRule').value});
