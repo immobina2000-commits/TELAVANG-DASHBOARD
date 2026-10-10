@@ -2373,10 +2373,21 @@ TVL.alerts = (function(){
       if(pm.prev){ blk.change={fact:'تغییر مقدار: '+F.sgnN(t.change)+' '+C.measure.unit+'  ·  رشد درصدی: '+(t.growth!==null?F.sgn(t.growth):'قابل محاسبه نیست (مبنای قبلی صفر است)'),evidence:'مبنای مقایسه: '+(per.comparisonLabel||('قبلی '+F.n(t.prev)+' ← فعلی '+F.n(t.cur)))}; }
       else blk.change={fact:'مقایسه‌ی دوره ممکن نیست',evidence:per.note||'دوره‌ی قبلی موجود نیست'};
       if(d.available&&t.change!==0){ const rp=d.dims.rep, pv=d.dims.province; const up=rp.rows.filter(e=>e.change>0), dn=rp.rows.filter(e=>e.change<0); const gu=up.reduce((s,e)=>s+e.change,0), gd=dn.reduce((s,e)=>s+e.change,0);
+        /* Breaking a change down "by representative" when the current filter already narrows
+           the data to a single representative is circular: that one rep is trivially 100% of
+           the change, every time, regardless of who's selected — not an insight, just an echo
+           of the filter. Detected directly from the breakdown's own row count (robust whether
+           the narrowing came from a rep filter or the data simply had one active rep this
+           period), not by inspecting which filter is active. */
+        if(rp.rows.length<=1){
+          blk.why={fact:'فیلتر فعلی به یک نماینده محدود شده، بنابراین تجزیه‌ی تغییر بین نمایندگان معنا ندارد (کل تغییر طبیعتاً متعلق به همان یک نماینده است).',evidence:'برای دیدن تجزیه‌ی واقعی بین نمایندگان، فیلتر «نماینده» را پاک کنید.'};
+          blk.impact={fact:'با فیلتر روی یک نماینده، «بیشترین اثر» همیشه همان یک نماینده خواهد بود؛ این پرسش فقط وقتی معنا دارد که چند نماینده هم‌زمان در فیلتر باشند.'};
+        } else {
         const top=(arr)=>arr.slice(0,3).map(e=>'«'+e.label+'» ('+F.sgnN(e.change)+')').join('، ')||'—'; const dirRows=(t.change>0?up:dn); const share=(t.change>0?gu:gd)!==0?dirRows.slice(0,3).reduce((s,e)=>s+e.change,0)/(t.change>0?gu:gd):null;
         blk.why={fact:'تغییر خالص '+F.sgnN(t.change)+' = افزایش ناخالص '+F.sgnN(gu)+' ('+F.n(up.length)+' نماینده) و کاهش ناخالص '+F.sgnN(gd)+' ('+F.n(dn.length)+' نماینده)',evidence:'بیشترین افزایش: '+top(up)+' | بیشترین کاهش: '+top(dn.slice().sort((a,b)=>a.change-b.change))+(share!==null?' | سه نماینده‌ی اول '+F.pct(share,0)+' از '+(t.change>0?'افزایش':'کاهش')+' ناخالص را ساخته‌اند':'')+' | استان‌ها: '+pv.rows.slice(0,3).map(e=>e.label+' '+F.sgnN(e.change)).join('، '),interp:'این تجزیه توصیفی است؛ '+CAUSE};
         const bu=up[0], bd=dn.slice().sort((a,b)=>a.change-b.change)[0];
-        blk.impact={fact:'بزرگ‌ترین اثر مثبت: '+(bu?bu.label+' ('+F.sgnN(bu.change)+')':'—')+'؛ بزرگ‌ترین اثر منفی: '+(bd?bd.label+' ('+F.sgnN(bd.change)+')':'—')}; }
+        blk.impact={fact:'بزرگ‌ترین اثر مثبت: '+(bu?bu.label+' ('+F.sgnN(bu.change)+')':'—')+'؛ بزرگ‌ترین اثر منفی: '+(bd?bd.label+' ('+F.sgnN(bd.change)+')':'—')};
+        } }
       const mine=alerts.filter(a=>a.product===pname); const high=mine.filter(a=>a.severity==='High'&&a.kind!=='opportunity'); const opp=mine.filter(a=>a.kind==='opportunity');
       blk.risk={fact:F.n(high.length)+' هشدار با اولویت بالا و '+F.n(mine.filter(a=>a.kind!=='opportunity').length)+' هشدار کل',evidence:high.slice(0,3).map(a=>a.title).join(' | ')||'—'};
       blk.opportunity={fact:F.n(opp.length)+' نماینده/استان با رشد قابل‌توجه',evidence:opp.slice(0,3).map(a=>a.title).join(' | ')||'—'};
