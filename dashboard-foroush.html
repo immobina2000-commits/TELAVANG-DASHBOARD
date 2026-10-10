@@ -1220,10 +1220,24 @@ TVL.metrics = (function(){
     const rows=[...map.values()].map(e=>{
       e.activeDays=e.days.size; delete e.days; e.activeDaysPrev=prev?e.prevDays.size:null; delete e.prevDays; e.share=total.cur>0?e.cur/total.cur:null;
       e.change=prev?e.cur-e.prev:null; e.growth=prev?G(e.cur,e.prev):null;
-      e.contribution=(prev&&total.change!==0&&total.change!==null)?e.change/total.change:null;
       e.avgDaily=e.activeDays?e.cur/e.activeDays:null; e.avgEvent=e.events?e.cur/e.events:null;
       e.gapDays=e.lastJdn===null?null:ref-e.lastJdn;
       e.label=e.key===NULLV?'نامشخص':e.key; return e; });
+    /* "مشارکت" used to be each row's own change ÷ the TOTAL's net change — but when a lot of
+       rows move in opposite directions, the net change can be small (or even flip sign) relative
+       to any one row's own movement, so a row that itself GREW could show a NEGATIVE, 100%+-
+       magnitude "contribution" — mathematically what the formula says, but backwards from what
+       anyone reads "مشارکت" to mean. Redefined as this row's share of the GROSS movement in its
+       OWN direction (its growth ÷ total gross growth, or its decline ÷ total gross decline) —
+       always the same sign as the row's own change, always within ±100%, and the same "ناخالص"
+       split already used in the Q3 narrative elsewhere in this file. */
+    const grossUp=rows.reduce((s,e)=>s+(e.change>0?e.change:0),0), grossDown=rows.reduce((s,e)=>s+(e.change<0?e.change:0),0);
+    rows.forEach(e=>{
+      if(!prev||e.change===null) e.contribution=null;
+      else if(e.change>0) e.contribution=grossUp>0?e.change/grossUp:null;
+      else if(e.change<0) e.contribution=grossDown<0?-(e.change/grossDown):null;
+      else e.contribution=0;
+    });
     rows.sort((a,b)=>b.cur-a.cur||a.label.localeCompare(b.label,'fa'));
     rows.forEach((e,i)=>{ e.rank=i+1; });
     return rows;
@@ -2314,7 +2328,7 @@ TVL.alerts = (function(){
             title:'افت '+F.pct(-e.growth,0)+' فروش '+ENT[et]+' «'+e.label+'» ('+pname+')',evidence:ev(e.cur,e.prev).concat([['سهم در دوره‌ی قبل',F.pct(prevShare)]]),
             investigate:et==='rep'?['روند روزانه‌ی همین نماینده در «الگوی روز فروش» و «روند فروش»','ثبت‌شدن کامل فروش این دوره در فایل منبع','برنامه‌ی ارسال/موجودی این نماینده در دوره‌ی جاری']:['نمایندگان همین '+ENT[et]+' که بیشترین سهم افت را دارند','ثبت‌شدن کامل داده‌ی این '+ENT[et]+' در فایل منبع']}));
           if(e.growth>=T.growthAlert&&e.cur>0) out.push(mk({rule:'growth',kind:'opportunity',severity:'Info',product:pname,entityType:et,entity:e.label,metric:'رشد نسبت به دوره‌ی قبل',threshold:'≥ +'+F.pct(T.growthAlert,0),
-            title:'رشد '+F.pct(e.growth,0)+' فروش '+ENT[et]+' «'+e.label+'» ('+pname+')',evidence:ev(e.cur,e.prev).concat([['مشارکت در تغییر کل',F.pct(e.contribution)]]),
+            title:'رشد '+F.pct(e.growth,0)+' فروش '+ENT[et]+' «'+e.label+'» ('+pname+')',evidence:ev(e.cur,e.prev).concat([['مشارکت در مجموع رشدها',F.pct(e.contribution)]]),
             investigate:['بررسی کنید این رشد در دوره‌های بعد هم ادامه دارد یا ناشی از یک سفارش یک‌باره بوده است','ظرفیت تأمین را برای پاسخ‌گویی پایدار به این سطح تقاضا ارزیابی کنید']})); });
       });
       // inactivity (rep / customer)
@@ -2994,7 +3008,7 @@ TVL.views.overview={render(app){
     else if(!dim) drv='<div class="empty">بعدی برای تجزیه وجود ندارد.</div>';
     else { const D=dd.dims[dim]; const top=D.rows.slice(0,10); const id='drv_'+p+dim;
       drv='<div class="subnav">'+avail.map(d=>'<button data-drvdim="'+d[0]+'" class="'+(d[0]===dim?'on':'')+'">'+d[1]+'</button>').join('')+'</div>'
-        +'<div class="grid2"><div>'+Ch.hbar(top.map(e=>({l:e.label,v:e.change,tip:'<b>'+esc(e.label)+'</b><br>فعلی: '+F.n(e.cur)+'<br>قبلی: '+F.n(e.prev)+'<br>تغییر: '+F.sgnN(e.change)+'<br>رشد: '+F.sgn(e.growth)+'<br>مشارکت در تغییر کل: '+F.pct(e.contribution),r:F.pct(e.contribution,0)})))+'</div>'
+        +'<div class="grid2"><div>'+Ch.hbar(top.map(e=>({l:e.label,v:e.change,tip:'<b>'+esc(e.label)+'</b><br>فعلی: '+F.n(e.cur)+'<br>قبلی: '+F.n(e.prev)+'<br>تغییر: '+F.sgnN(e.change)+'<br>رشد: '+F.sgn(e.growth)+'<br>مشارکت در '+(e.change>=0?'مجموع رشدها':'مجموع افت‌ها')+': '+F.pct(e.contribution),r:F.pct(e.contribution,0)})))+'</div>'
         +'<div>'+UI.table(id,{pageSize:10,rows:top,cols:[{key:'l',label:D.label,cell:r=>esc(r.label)},{key:'c',label:'فعلی',num:true,cell:r=>F.n(r.cur)},{key:'p',label:'قبلی',num:true,cell:r=>F.n(r.prev)},{key:'d',label:'تغییر',num:true,cell:r=>H.chg(r.change,r.prev)},{key:'g',label:'رشد',num:true,cell:r=>H.gro(r.growth,r.prev)},{key:'k',label:'مشارکت',num:true,cell:r=>r.contribution===null?'<span class="flat">قابل محاسبه نیست</span>':F.pct(r.contribution)}]})+'</div></div>'
         +'<div class="note '+(D.exact?'':'bad')+'">جمع تغییر همه‌ی '+D.label+'‌ها = '+F.sgnN(D.sumChange)+' — تغییر کل = '+F.sgnN(dd.total)+(D.exact?' ✓ تجزیه دقیق است':' ✗ مغایرت!')+'. این تجزیه توصیفی است و علت را مشخص نمی‌کند.</div>'; }
     // monthly context
@@ -3002,7 +3016,7 @@ TVL.views.overview={render(app){
     const trend=Ch.slot(Ch.bar(bk.map(b=>({l:b.label,v:b.v,cls:inP.has(b.key)?'':'mut',tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به ماه قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:220,title:'روند ماهانه'}));
     const top=app.alerts.filter(a=>a.product===p&&a.kind!=='opportunity'&&a.severity==='High').slice(0,4);
     return TVL.kpi.row(pm,mt.period)
-      +H.panel('چرا فروش تغییر کرد؟','تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی).',drv)
+      +H.panel('چرا فروش تغییر کرد؟','تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی). ستون «مشارکت» یعنی سهم این ردیف از مجموع رشدها (اگر خودش رشد کرده) یا از مجموع افت‌ها (اگر خودش افت کرده) — نه از تغییر خالص کل؛ همیشه هم‌جهت با رشد/افت خودِ همان ردیف است.',drv)
       +H.panel('روند ماهانه','ستون‌های پررنگ = ماه‌های بازه‌ی انتخابی. واحد: '+C.measure.unit,trend)
       +H.panel('گزارش مدیریتی — '+esc(mt.period.label),'پاسخ هفت پرسش اصلی، با عدد و شواهد. علت فقط وقتی اعلام می‌شود که در داده مستند باشد.',story7)
       +(top.length?H.panel('هشدارهای با اولویت بالا','برای همه‌ی هشدارها به تب «هشدارها و فرصت‌ها» بروید.',top.map(a=>'<div class="alert high"><h3>'+esc(a.title)+'</h3><div class="meta">'+esc(a.ruleLabel)+' · '+esc(a.metric)+'</div></div>').join('')):''); });
