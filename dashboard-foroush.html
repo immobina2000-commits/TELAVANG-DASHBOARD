@@ -2380,8 +2380,28 @@ TVL.alerts = (function(){
            the narrowing came from a rep filter or the data simply had one active rep this
            period), not by inspecting which filter is active. */
         if(rp.rows.length<=1){
-          blk.why={fact:'فیلتر فعلی به یک نماینده محدود شده، بنابراین تجزیه‌ی تغییر بین نمایندگان معنا ندارد (کل تغییر طبیعتاً متعلق به همان یک نماینده است).',evidence:'برای دیدن تجزیه‌ی واقعی بین نمایندگان، فیلتر «نماینده» را پاک کنید.'};
-          blk.impact={fact:'با فیلتر روی یک نماینده، «بیشترین اثر» همیشه همان یک نماینده خواهد بود؛ این پرسش فقط وقتی معنا دارد که چند نماینده هم‌زمان در فیلتر باشند.'};
+          /* Breaking the change down "by representative" is circular once the filter already
+             narrows to one rep. Two things stay genuinely informative at this scope, reusing
+             data already computed elsewhere (TVL.metrics.bucket for monthly history) rather than
+             a flat "not applicable" message: (1) WHICH DAYS within this rep's own period moved
+             the needle, the same logic as the rep-breakdown one level down; (2) whether this
+             change is part of a longer pattern or a one-off, by comparing this month against
+             this rep's own average over its other months on record. */
+          const byDay=recs=>{ const m=new Map(); recs.forEach(r=>m.set(r.day,(m.get(r.day)||0)+r.v)); return m; };
+          const curD=byDay(pm.cur), prevD=byDay(pm.prev);
+          const days=[...new Set([...curD.keys(),...prevD.keys()])].map(dy=>({day:dy,change:(curD.get(dy)||0)-(prevD.get(dy)||0)})).filter(x=>x.change!==0).sort((a,b)=>Math.abs(b.change)-Math.abs(a.change));
+          const dup=days.filter(x=>x.change>0), ddn=days.filter(x=>x.change<0).sort((a,b)=>a.change-b.change);
+          const dtop=arr=>arr.slice(0,3).map(x=>'روز '+F.n(x.day)+' ('+F.sgnN(x.change)+')').join('، ')||'—';
+          blk.why={fact:'فیلتر فعلی به یک نماینده محدود است؛ به‌جای تجزیه بین نمایندگان (که اینجا بی‌معنی است)، تغییر بین روزهای این نماینده تجزیه شده است.',evidence:'بیشترین افزایش روزانه: '+dtop(dup)+' | بیشترین کاهش روزانه: '+dtop(ddn),interp:'این تجزیه توصیفی است؛ '+CAUSE};
+          const mon=TVL.metrics.bucket(pm.base,'monthly'); const curKey=per.months&&per.months.length?per.months[per.months.length-1]:null;
+          const others=mon.filter(b=>b.key!==curKey&&b.v>0);
+          if(others.length){
+            const avg=others.reduce((s,b)=>s+b.v,0)/others.length;
+            const diff=avg>0?(t.cur-avg)/avg:null;
+            blk.impact={fact:'میانگین فروش این نماینده در '+F.n(others.length)+' ماه دیگرِ موجود: '+F.n(Math.round(avg))+' '+C.measure.unit+'؛ این دوره: '+F.n(t.cur)+(diff!==null?' ('+F.sgn(diff)+' نسبت به آن میانگین)':''),evidence:'اگر این دوره نزدیک میانگین باشد، تغییر احتمالاً نوسان عادی همین نماینده است؛ اگر فاصله‌ی زیادی داشته باشد، نیازمند بررسی جداگانه است.'};
+          } else {
+            blk.impact={fact:'سابقه‌ی ماه دیگری از این نماینده برای مقایسه در داده موجود نیست.'};
+          }
         } else {
         const top=(arr)=>arr.slice(0,3).map(e=>'«'+e.label+'» ('+F.sgnN(e.change)+')').join('، ')||'—'; const dirRows=(t.change>0?up:dn); const share=(t.change>0?gu:gd)!==0?dirRows.slice(0,3).reduce((s,e)=>s+e.change,0)/(t.change>0?gu:gd):null;
         blk.why={fact:'تغییر خالص '+F.sgnN(t.change)+' = افزایش ناخالص '+F.sgnN(gu)+' ('+F.n(up.length)+' نماینده) و کاهش ناخالص '+F.sgnN(gd)+' ('+F.n(dn.length)+' نماینده)',evidence:'بیشترین افزایش: '+top(up)+' | بیشترین کاهش: '+top(dn.slice().sort((a,b)=>a.change-b.change))+(share!==null?' | سه نماینده‌ی اول '+F.pct(share,0)+' از '+(t.change>0?'افزایش':'کاهش')+' ناخالص را ساخته‌اند':'')+' | استان‌ها: '+pv.rows.slice(0,3).map(e=>e.label+' '+F.sgnN(e.change)).join('، '),interp:'این تجزیه توصیفی است؛ '+CAUSE};
