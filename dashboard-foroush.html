@@ -2555,16 +2555,19 @@ TVL.charts = (function(){
 
   function bar(items,o){ o=o||{}; return W=>{
     if(!items.length) return EMPTY; const H=o.H||240; let mx=Math.max(...items.map(i=>i.v),...(o.line||[]).filter(x=>x!==null&&x!==undefined),0); const max=nice(mx*1.06||1);
-    const pad={l:padL(max),r:14,t:22,b:o.rot?52:34}; const n=items.length, bw=(W-pad.l-pad.r)/n;
-    /* Rotated category labels (rep names, etc.) can run far longer than any caller-supplied
-       labelW guess — if the label-spacing budget is too small, rotated text from neighbouring
-       bars visually overlaps/collides into each other's column. Estimate each label's real
-       rendered footprint from its own character count (Persian text ≈ monospace at this
-       font-size; a -35° rotation shrinks the horizontal footprint by cos(35°) ≈ 0.82) and widen
-       the budget to whichever is larger — the caller's hint or the measured real need. */
+    const n=items.length;
+    /* Every category needs its own visible label (a chart with some bars unlabeled is useless
+       for picking out "which rep is that?"). A -35° tilt still overlaps neighbouring long
+       labels no matter how the spacing budget is tuned, forcing some to be skipped — so rotated
+       labels are drawn fully vertical (-90°) instead: each one's horizontal footprint shrinks to
+       just its own line-height, which comfortably fits inside any one bar's own column width, so
+       all of them can be shown with no skipping and no collision. Bottom padding is sized from
+       the single longest label's character count so the longest name still fits without being
+       clipped, rather than a fixed guess. */
     const labLen=o.rot?Math.max(...items.map(i=>(i.l||'').length),1):0;
-    const effLabelW=o.rot?Math.max(o.labelW||46,labLen*6.3*0.82+10):(o.labelW||46);
-    const step=Math.max(1,Math.ceil(n*effLabelW/(W-pad.l-pad.r)));
+    const pad={l:padL(max),r:14,t:22,b:o.rot?Math.min(170,Math.max(60,labLen*6.3+18)):34};
+    const bw=(W-pad.l-pad.r)/n;
+    const step=1;
     let s=axisY(W,H,pad,max,4);
     /* Value labels must never collide: estimate each number's rendered width from its digit/
        separator count (Persian numerals ≈ monospace at this font-size) and only show them when
@@ -2581,7 +2584,7 @@ TVL.charts = (function(){
          wrong column even though it's mathematically under its own. Anchoring at "end" instead
          makes the text start exactly at its own bar's tick and read outward, which is the
          standard fix for rotated axis labels and removes the illusion. */
-      if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+16)+'" text-anchor="'+(o.rot?'end':'middle')+'"'+(o.rot?' transform="rotate(-35 '+(x+bw/2)+' '+(H-pad.b+16)+')"':'')+'>'+rt(esc(it.l))+'</text>';
+      if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+14)+'" text-anchor="'+(o.rot?'end':'middle')+'"'+(o.rot?' transform="rotate(-90 '+(x+bw/2)+' '+(H-pad.b+14)+')"':'')+'>'+rt(esc(it.l))+'</text>';
       if(showVals) s+='<text class="vl" x="'+(x+bw/2)+'" y="'+(y-5)+'" text-anchor="middle">'+F.n(it.v)+'</text>'; });
     if(o.line){ let d=''; o.line.forEach((v,i)=>{ if(v===null||v===undefined) return; const x=pad.l+i*bw+bw/2,y=H-pad.b-(H-pad.t-pad.b)*v/max; d+=(d?'L':'M')+x.toFixed(1)+','+y.toFixed(1); }); s+='<path class="ln" d="'+d+'"/>'; }
     return '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.title||'نمودار میله‌ای')+'" data-sum="'+items.reduce((a,b)=>a+b.v,0)+'">'+s+'</svg>'; }; }
