@@ -2612,9 +2612,14 @@ TVL.charts = (function(){
   function axisY(W,H,pad,max,ticks){ let s=''; for(let i=0;i<=ticks;i++){ const v=max*i/ticks,y=H-pad.b-(H-pad.t-pad.b)*i/ticks; s+='<line class="grid" x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+y+'" y2="'+y+'"/><text class="ax" x="'+(pad.l-8)+'" y="'+(y+4)+'" text-anchor="end">'+F.n(v)+'</text>'; } return s; }
   const padL=max=>Math.max(44,14+8*F.n(max).length);
 
-  function bar(items,o){ o=o||{}; return W=>{
+  function bar(items,o){ o=o||{}; return W0=>{
     if(!items.length) return EMPTY; const H=o.H||240; let mx=Math.max(...items.map(i=>i.v),...(o.line||[]).filter(x=>x!==null&&x!==undefined),0); const max=nice(mx*1.06||1);
     const n=items.length;
+    /* o.scrollMin: a floor on px-per-bar. When the category count needs more room than the
+       panel's own width, the SVG is drawn at its full natural width instead of being squeezed,
+       and wrapped in a horizontally-scrollable div — so a long history (e.g. 100+ months) stays
+       readable at a fixed zoom level rather than shrinking bars to illegible slivers. */
+    const W=o.scrollMin?Math.max(W0,n*o.scrollMin):W0;
     /* Every category needs its own visible label (a chart with some bars unlabeled is useless
        for picking out "which rep is that?"). A -35° tilt still overlaps neighbouring long
        labels no matter how the spacing budget is tuned, forcing some to be skipped — so rotated
@@ -2650,7 +2655,8 @@ TVL.charts = (function(){
       if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+14)+'" text-anchor="'+(o.rot?'end':'middle')+'"'+(o.rot?' transform="rotate(-90 '+(x+bw/2)+' '+(H-pad.b+14)+')"':'')+'>'+rt(esc(it.l))+'</text>';
       if(showVals) s+='<text class="vl" x="'+(x+bw/2)+'" y="'+(y-5)+'" text-anchor="middle">'+F.n(it.v)+'</text>'; });
     if(o.line){ let d=''; o.line.forEach((v,i)=>{ if(v===null||v===undefined) return; const x=pad.l+i*bw+bw/2,y=H-pad.b-(H-pad.t-pad.b)*v/max; d+=(d?'L':'M')+x.toFixed(1)+','+y.toFixed(1); }); s+='<path class="ln" d="'+d+'"/>'; }
-    return '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.title||'نمودار میله‌ای')+'" data-sum="'+items.reduce((a,b)=>a+b.v,0)+'">'+s+'</svg>'; }; }
+    const svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.title||'نمودار میله‌ای')+'" data-sum="'+items.reduce((a,b)=>a+b.v,0)+'">'+s+'</svg>';
+    return W>W0?'<div style="overflow-x:auto">'+svg+'</div>':svg; }; }
 
   function lines(xs,series,o){ o=o||{}; return W=>{
     if(!xs.length) return EMPTY; const H=o.H||250; let mx=0; series.forEach(se=>se.vals.forEach(v=>{ if(v!==null&&v>mx) mx=v; })); const max=nice(mx*1.05||1);
@@ -3038,7 +3044,7 @@ TVL.vh = (function(){
 /* ---------- views/overview.js ---------- */
 /* ===== views/overview.js — Executive dashboard: where are we / what changed / why / impact / risk / opportunity / what to check (Phase 10, 11, 39, 52) ===== */
 TVL.views.overview={render(app){
-  const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,C=TVL.config,esc=F.esc;
+  const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,C=TVL.config,esc=F.esc,J=TVL.jalali;
   const story=TVL.alerts.story(mt,app.alerts);
   const DIMS=[['rep','نماینده'],['province','استان'],['city','شهر'],['customer','مشتری'],['channel','کانال']];
   let head=H.periodNote(mt);
@@ -3065,16 +3071,23 @@ TVL.views.overview={render(app){
         +'<div class="grid2"><div>'+Ch.hbar(top.map(e=>({l:e.label,v:e.change,tip:'<b>'+esc(e.label)+'</b><br>فعلی: '+F.n(e.cur)+'<br>قبلی: '+F.n(e.prev)+'<br>تغییر: '+F.sgnN(e.change)+'<br>رشد: '+F.sgn(e.growth)+'<br>مشارکت در '+(e.change>=0?'مجموع رشدها':'مجموع افت‌ها')+': '+F.pct(e.contribution),r:F.pct(e.contribution,0)})))+'</div>'
         +'<div>'+UI.table(id,{pageSize:10,rows:top,cols:[{key:'l',label:D.label,cell:r=>esc(r.label)},{key:'c',label:'فعلی',num:true,cell:r=>F.n(r.cur)},{key:'p',label:'قبلی',num:true,cell:r=>F.n(r.prev)},{key:'d',label:'تغییر',num:true,cell:r=>H.chg(r.change,r.prev)},{key:'g',label:'رشد',num:true,cell:r=>H.gro(r.growth,r.prev)},{key:'k',label:'مشارکت',num:true,cell:r=>r.contribution===null?'<span class="flat">قابل محاسبه نیست</span>':F.pct(r.contribution)}]})+'</div></div>'
         +'<div class="note '+(D.exact?'':'bad')+'">جمع تغییر همه‌ی '+D.label+'‌ها = '+F.sgnN(D.sumChange)+' — تغییر کل = '+F.sgnN(dd.total)+(D.exact?' ✓ تجزیه دقیق است':' ✗ مغایرت!')+'. این تجزیه توصیفی است و علت را مشخص نمی‌کند.</div>'; }
-    // monthly context
-    const bk=TVL.metrics.bucket(pm.base,'monthly'); const inP=new Set(mt.period.months||[]);
-    const trend=Ch.slot(Ch.bar(bk.map(b=>({l:b.label,v:b.v,cls:inP.has(b.key)?'':'mut',tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به ماه قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:220,title:'روند ماهانه'}));
+    // monthly/yearly context — a long history (many months) defaults to yearly bars so the chart
+    // stays legible; "ماهانه" zooms in to the full monthly detail with horizontal scroll.
+    const bkMonthly=TVL.metrics.bucket(pm.base,'monthly');
+    const autoGran=bkMonthly.length>24?'yearly':'monthly';
+    const trendGran=app.ui.ovTrendGran||autoGran;
+    const bk=trendGran==='yearly'?TVL.metrics.bucket(pm.base,'yearly'):bkMonthly;
+    const inP=new Set(mt.period.months||[]); const selYears=new Set((mt.period.months||[]).map(k=>J.fromMonthKey(k).y));
+    const granCtl=bkMonthly.length>24?'<div class="seg" style="margin-bottom:10px">'+[['yearly','سالانه'],['monthly','ماهانه']].map(g=>'<button data-ovgran="'+g[0]+'" class="'+(trendGran===g[0]?'on':'')+'">'+g[1]+'</button>').join('')+'</div>':'';
+    const trend=granCtl+Ch.slot(Ch.bar(bk.map(b=>({l:b.label,v:b.v,cls:(trendGran==='yearly'?selYears.has(b.key):inP.has(b.key))?'':'mut',tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به '+(trendGran==='yearly'?'سال':'ماه')+' قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:220,title:'روند '+(trendGran==='yearly'?'سالانه':'ماهانه'),scrollMin:trendGran==='monthly'?50:undefined}));
     const top=app.alerts.filter(a=>a.product===p&&a.kind!=='opportunity'&&a.severity==='High').slice(0,4);
     return TVL.kpi.row(pm,mt.period,p)
       +H.panel('چرا فروش تغییر کرد؟','تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی). ستون «مشارکت» یعنی سهم این ردیف از مجموع رشدها (اگر خودش رشد کرده) یا از مجموع افت‌ها (اگر خودش افت کرده) — نه از تغییر خالص کل؛ همیشه هم‌جهت با رشد/افت خودِ همان ردیف است.',drv)
       +H.panel('روند ماهانه','ستون‌های پررنگ = ماه‌های بازه‌ی انتخابی. واحد: '+C.measure.unit,trend)
       +H.panel('گزارش مدیریتی — '+esc(mt.period.label),'پاسخ هفت پرسش اصلی، با عدد و شواهد. علت فقط وقتی اعلام می‌شود که در داده مستند باشد.',story7)
       +(top.length?H.panel('هشدارهای با اولویت بالا','برای همه‌ی هشدارها به تب «هشدارها و فرصت‌ها» بروید.',top.map(a=>'<div class="alert high"><h3>'+esc(a.title)+'</h3><div class="meta">'+esc(a.ruleLabel)+' · '+esc(a.metric)+'</div></div>').join('')):''); });
-},bind(app,root){ root.querySelectorAll('[data-drvdim]').forEach(b=>b.onclick=()=>{ app.ui.driverDim=b.dataset.drvdim; app.render(); }); }};
+},bind(app,root){ root.querySelectorAll('[data-drvdim]').forEach(b=>b.onclick=()=>{ app.ui.driverDim=b.dataset.drvdim; app.render(); });
+  root.querySelectorAll('[data-ovgran]').forEach(b=>b.onclick=()=>{ app.ui.ovTrendGran=b.dataset.ovgran; app.render(); }); }};
 
 /* ---------- views/sales-trend.js ---------- */
 /* ===== views/sales-trend.js — daily / weekly / monthly / quarterly / yearly, moving average, cumulative, current vs previous (Phase 9, 12, 47) ===== */
@@ -3089,7 +3102,7 @@ TVL.views.trend={render(app){
       tip:'<b>'+F.dateLong(x.jdn)+'</b> ('+C.weekdays[x.wd]+')<br>فروش: '+F.n(x.v)+(x.recorded?'':' <i>(بدون رکورد)</i>')+'<br>تغییر نسبت به روز کاری قبل: '+(i?F.sgnN(x.v-d[i-1].v):'داده کافی نیست')+'<br>رشد: '+(!i?'داده کافی نیست':(d[i-1].v>0?F.sgn(x.v/d[i-1].v-1):'قابل محاسبه نیست'))+'<br>رتبه‌ی روز: '+(rank.has(x.jdn)?F.n(rank.get(x.jdn))+' از '+F.n(nAct):'—')}));
     const c1=Ch.slot(Ch.bar(items,{H:270,valueLabels:false,title:'فروش روزانه',labelW:30,line:d.map(x=>x.ma)}));
     const hist=M.bucket(pm.base,gran); const tot=hist.reduce((a,b)=>a+b.v,0);
-    const c2=Ch.slot(Ch.bar(hist.map(b=>({l:b.label,v:b.v,tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به گام قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>سهم از کل تاریخچه: '+F.pct(tot?b.v/tot:null)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:230,rot:hist.length>10,maxLabels:18,title:'روند تاریخی'}));
+    const c2=Ch.slot(Ch.bar(hist.map(b=>({l:b.label,v:b.v,tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به گام قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>سهم از کل تاریخچه: '+F.pct(tot?b.v/tot:null)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:230,rot:hist.length>10,maxLabels:18,title:'روند تاریخی',scrollMin:hist.length>24?36:undefined}));
     const mon=M.bucket(pm.base,'monthly'); const ma3=M.rolling(mon,3);
     const c3=Ch.slot(Ch.lines(mon.map(b=>b.label),[{name:'فروش ماهانه',vals:mon.map(b=>b.v),c:1},{name:'میانگین متحرک ۳ماهه',vals:ma3,c:3,dash:true}],{H:230,title:'روند ماهانه'}));
     const n=Math.max(d.length,s.dailyPrev?s.dailyPrev.length:0); const xs=[...Array(n).keys()].map(i=>F.n(i+1));
