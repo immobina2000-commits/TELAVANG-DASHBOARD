@@ -2429,7 +2429,7 @@ TVL.alerts = (function(){
           const days=[...new Set([...curD.keys(),...prevD.keys()])].map(dy=>({day:dy,change:(curD.get(dy)||0)-(prevD.get(dy)||0)})).filter(x=>x.change!==0).sort((a,b)=>Math.abs(b.change)-Math.abs(a.change));
           const dup=days.filter(x=>x.change>0), ddn=days.filter(x=>x.change<0).sort((a,b)=>a.change-b.change);
           const dtop=arr=>arr.slice(0,3).map(x=>'روز '+F.n(x.day)+' ('+F.sgnN(x.change)+')').join('، ')||'—';
-          blk.why={fact:(chanNoBreak?'تغییر بین روزهای ماه تجزیه شده است.':'فیلتر فعلی به یک نماینده محدود است؛ به‌جای تجزیه بین نمایندگان (که اینجا بی‌معنی است)، تغییر بین روزهای این نماینده تجزیه شده است.'),evidence:'بیشترین افزایش روزانه: '+dtop(dup)+' | بیشترین کاهش روزانه: '+dtop(ddn),interp:'این تجزیه توصیفی است؛ '+CAUSE};
+          blk.why={fact:(chanNoBreak?'تغییر بین روزهای ماه تجزیه شده است.':'فیلتر فعلی به یک نماینده محدود است؛ به‌جای تجزیه بین نمایندگان (که اینجا بی‌معنی است)، تغییر بین روزهای این نماینده تجزیه شده است.'),evidence:'بیشترین افزایش روزانه: '+dtop(dup)+' | بیشترین کاهش روزانه: '+dtop(ddn)};
           const mon=TVL.metrics.bucket(pm.base,'monthly'); const curKey=per.months&&per.months.length?per.months[per.months.length-1]:null;
           const others=mon.filter(b=>b.key!==curKey&&b.v>0);
           if(others.length){
@@ -2441,7 +2441,7 @@ TVL.alerts = (function(){
           }
         } else {
         const top=(arr)=>arr.slice(0,3).map(e=>'«'+e.label+'» ('+F.sgnN(e.change)+')').join('، ')||'—'; const dirRows=(t.change>0?up:dn); const share=(t.change>0?gu:gd)!==0?dirRows.slice(0,3).reduce((s,e)=>s+e.change,0)/(t.change>0?gu:gd):null;
-        blk.why={fact:'تغییر خالص '+F.sgnN(t.change)+' = افزایش ناخالص '+F.sgnN(gu)+' ('+F.n(up.length)+' نماینده) و کاهش ناخالص '+F.sgnN(gd)+' ('+F.n(dn.length)+' نماینده)',evidence:'بیشترین افزایش: '+top(up)+' | بیشترین کاهش: '+top(dn.slice().sort((a,b)=>a.change-b.change))+(share!==null?' | سه نماینده‌ی اول '+F.pct(share,0)+' از '+(t.change>0?'افزایش':'کاهش')+' ناخالص را ساخته‌اند':'')+' | استان‌ها: '+pv.rows.slice(0,3).map(e=>e.label+' '+F.sgnN(e.change)).join('، '),interp:'این تجزیه توصیفی است؛ '+CAUSE};
+        blk.why={fact:'تغییر خالص '+F.sgnN(t.change)+' = افزایش ناخالص '+F.sgnN(gu)+' ('+F.n(up.length)+' نماینده) و کاهش ناخالص '+F.sgnN(gd)+' ('+F.n(dn.length)+' نماینده)',evidence:'بیشترین افزایش: '+top(up)+' | بیشترین کاهش: '+top(dn.slice().sort((a,b)=>a.change-b.change))+(share!==null?' | سه نماینده‌ی اول '+F.pct(share,0)+' از '+(t.change>0?'افزایش':'کاهش')+' ناخالص را ساخته‌اند':'')+' | استان‌ها: '+pv.rows.slice(0,3).map(e=>e.label+' '+F.sgnN(e.change)).join('، ')};
         const bu=up[0], bd=dn.slice().sort((a,b)=>a.change-b.change)[0];
         blk.impact={fact:'بزرگ‌ترین اثر مثبت: '+(bu?bu.label+' ('+F.sgnN(bu.change)+')':'—')+'؛ بزرگ‌ترین اثر منفی: '+(bd?bd.label+' ('+F.sgnN(bd.change)+')':'—')};
         } }
