@@ -2766,17 +2766,33 @@ TVL.filtersUI = (function(){
   function readDateSelect(id){ const y=+document.getElementById(id+'Y').value,m=+document.getElementById(id+'M').value,d=+document.getElementById(id+'D').value; return J.toJdn(y,m,Math.min(d,J.monthLength(y,m))); }
   function fixDaySelect(id){ const yE=document.getElementById(id+'Y'),mE=document.getElementById(id+'M'),dE=document.getElementById(id+'D'); if(!yE||!mE||!dE) return;
     const y=+yE.value,m=+mE.value,cur=+dE.value,dn=J.monthLength(y,m); if(dE.options.length!==dn){ const keep=Math.min(cur,dn); dE.innerHTML=''; for(let i=1;i<=dn;i++){ const o=document.createElement('option'); o.value=i; o.textContent=F.n(i); if(i===keep) o.selected=true; dE.appendChild(o); } } }
-  const MONTH_INLINE_MAX=14;   // beyond this many months, show a searchable dropdown instead of a flat chip row
+  const MONTH_INLINE_MAX=14;   // beyond this many months/presets, show a searchable dropdown instead of a flat chip row
+  const PRESET_INLINE_MAX=14;
+  function chipDropdownHtml(opts){
+    // opts: {msKey, open, q, btnLabel, items:[{key,label,on}], dataAttr, emptyLabel, searchLabel}
+    const {msKey,open,q,btnLabel,items,dataAttr,searchLabel}=opts;
+    const filtered=items.filter(it=>!q||it.label.includes(q));
+    const hasSel=items.some(it=>it.on);
+    return '<div class="ms" data-ms="'+msKey+'"><button class="ms-btn'+(hasSel?' has':'')+'" aria-haspopup="listbox" aria-expanded="'+open+'" title="'+esc(btnLabel)+'">'+esc(btnLabel)+' ▾</button>'
+      +(open?'<div class="ms-panel" role="listbox" aria-multiselectable="true" aria-label="'+esc(searchLabel)+'"><input type="search" class="ms-search" placeholder="جست‌وجو در '+esc(searchLabel)+'" value="'+esc(q)+'" aria-label="جست‌وجو">'
+        +'<div class="mchips" style="padding:6px;max-height:260px;overflow:auto">'+filtered.map(it=>'<button class="mchip'+(it.on?' on':'')+'" '+dataAttr+'="'+it.key+'" aria-pressed="'+it.on+'">'+esc(it.label)+'</button>').join('')+(filtered.length?'':'<span class="empty">موردی نیست</span>')+'</div></div>':'')+'</div>';
+  }
   function monthsDropdownHtml(app,fMonths){
     const st=app.st, open=app.ui.openMs==='__months__', q=open?app.ui.msSearch:'';
     const sel=st.period.mode==='months'?st.period.months:[];
     const btn='ماه‌ها: '+(sel.length===0?'انتخاب':sel.length===1?F.monthLabel(J.fromMonthKey(sel[0]).y,J.fromMonthKey(sel[0]).m):F.n(sel.length)+' مورد');
-    const items=fMonths.map(k=>{ const o=J.fromMonthKey(k); return {k,label:F.monthLabel(o.y,o.m)}; });
-    const filtered=items.filter(it=>!q||it.label.includes(q));
-    return '<div class="ms" data-ms="__months__"><button class="ms-btn'+(sel.length?' has':'')+'" aria-haspopup="listbox" aria-expanded="'+open+'" title="'+esc(btn)+'">'+esc(btn)+' ▾</button>'
-      +(open?'<div class="ms-panel" role="listbox" aria-multiselectable="true" aria-label="ماه‌ها"><input type="search" class="ms-search" placeholder="جست‌وجو در ماه‌ها" value="'+esc(q)+'" aria-label="جست‌وجو">'
-        +'<div class="mchips" style="padding:6px;max-height:260px;overflow:auto">'+filtered.map(it=>'<button class="mchip'+(sel.includes(it.k)?' on':'')+'" data-month="'+it.k+'" aria-pressed="'+sel.includes(it.k)+'">'+esc(it.label)+'</button>').join('')+(filtered.length?'':'<span class="empty">موردی نیست</span>')+'</div></div>':'')+'</div>';
+    const items=fMonths.map(k=>{ const o=J.fromMonthKey(k); return {key:k,label:F.monthLabel(o.y,o.m),on:sel.includes(k)}; });
+    return chipDropdownHtml({msKey:'__months__',open,q,btnLabel:btn,items,dataAttr:'data-month',searchLabel:'ماه‌ها'});
   }
+  function presetsDropdownHtml(app,pre,fMonths){
+    const st=app.st, open=app.ui.openMs==='__presets__', q=open?app.ui.msSearch:'';
+    const onOf=x=>JSON.stringify(x.period)===JSON.stringify(st.period)||(x.id==='all'&&st.period.mode==='all')||(x.id==='last'&&st.period.mode==='months'&&st.period.months.length===1&&st.period.months[0]===fMonths[fMonths.length-1]&&st.period.kind==='month');
+    const cur=pre.find(onOf);
+    const btn='بازه: '+(cur?cur.label:per_fallback(st));
+    const items=pre.map(x=>({key:x.id,label:x.label,on:onOf(x)}));
+    return chipDropdownHtml({msKey:'__presets__',open,q,btnLabel:btn,items,dataAttr:'data-preset',searchLabel:'بازه‌ها'});
+  }
+  function per_fallback(st){ return st.period.mode==='range'?'بازه‌ی دلخواه':'انتخاب'; }
   function msHtml(app,f){
     const ds=app.ds,st=app.st; if(!Fi.present(ds,f.key)) return '';
     if(f.key==='productGroups'&&new Set(ds.records.map(r=>r.productGroup)).size<=ds.meta.products.length&&ds.meta.products.every(p=>ds.records.find(r=>r.product===p).productGroup===p)) return '';
@@ -2791,7 +2807,7 @@ TVL.filtersUI = (function(){
     const ds=app.ds,st=app.st; const per=TVL.period.resolve(ds,st.period); const pre=TVL.period.presets(ds,st);
     const fMonths=TVL.period.monthsFor(ds,st);
     const prodBtns=ds.meta.products.map(p=>'<button data-prod="'+esc(p)+'" class="'+(st.products.includes(p)?'on':'')+' '+TVL.vh.accent(p)+'" aria-pressed="'+st.products.includes(p)+'">'+esc(p)+'</button>').join('');
-    const presetBtns=pre.map(x=>{ const on=JSON.stringify(x.period)===JSON.stringify(st.period)||(x.id==='all'&&st.period.mode==='all')||(x.id==='last'&&st.period.mode==='months'&&st.period.months.length===1&&st.period.months[0]===fMonths[fMonths.length-1]&&st.period.kind==='month'); return '<button data-preset="'+x.id+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'">'+esc(x.label)+'</button>'; }).join('');
+    const presetsField=pre.length>PRESET_INLINE_MAX?presetsDropdownHtml(app,pre,fMonths):('<div class="seg">'+pre.map(x=>{ const on=JSON.stringify(x.period)===JSON.stringify(st.period)||(x.id==='all'&&st.period.mode==='all')||(x.id==='last'&&st.period.mode==='months'&&st.period.months.length===1&&st.period.months[0]===fMonths[fMonths.length-1]&&st.period.kind==='month'); return '<button data-preset="'+x.id+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'">'+esc(x.label)+'</button>'; }).join('')+'</div>');
     const monthsField=fMonths.length>MONTH_INLINE_MAX?monthsDropdownHtml(app,fMonths):('<div class="mchips">'+fMonths.map(k=>{ const o=J.fromMonthKey(k); const on=st.period.mode==='months'&&st.period.months.includes(k); return '<button class="mchip'+(on?' on':'')+'" data-month="'+k+'" aria-pressed="'+on+'">'+esc(F.monthLabel(o.y,o.m))+'</button>'; }).join('')+'</div>');
     const years=yearRange(ds);
     const defFrom=J.fromJdn(per.from), defTo=J.fromJdn(per.to);
@@ -2804,7 +2820,7 @@ TVL.filtersUI = (function(){
     const cToY=gv('cTo','Y',defCTo.y),cToM=gv('cTo','M',defCTo.m),cToD=gv('cTo','D',defCTo.d);
     const bar='<div class="fbar" role="group" aria-label="فیلترها">'
       +'<div class="grp"><span class="lbl">محصول <span title="Ctrl/⌘ + کلیک: انتخاب هم‌زمان چند محصول (هرگز جمع نمی‌شوند)">ⓘ</span></span><div class="seg">'+prodBtns+'</div></div>'
-      +'<div class="grp"><span class="lbl">بازه</span><div class="seg">'+presetBtns+'</div></div>'
+      +'<div class="grp"><span class="lbl">بازه</span>'+presetsField+'</div>'
       +'<div class="grp"><span class="lbl">ماه‌ها <span title="کلیک: فقط همان ماه. Ctrl/⌘ + کلیک: افزودن به ماه‌های انتخاب‌شده">ⓘ</span></span>'+monthsField+'</div>'
       +'<div class="grp"><span class="lbl">بازه‌ی دلخواه</span>'+dateSelects('rFrom',rFromY,rFromM,rFromD,years)+'<span>تا</span>'+dateSelects('rTo',rToY,rToM,rToD,years)
       +'<label style="font-size:12px;display:inline-flex;align-items:center;gap:4px"><input type="checkbox" id="cmpToggle"'+(cmpOn?' checked':'')+'> مقایسه با بازه‌ی دیگر</label>'
