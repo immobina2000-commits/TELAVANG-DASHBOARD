@@ -48,7 +48,11 @@ body.locked > :not(#authGate){display:none!important}
 #authGate .logo{font-size:24px;font-weight:800;color:#f2770e;margin-bottom:6px}
 #authGate h2{font-size:15px;color:var(--muted,#666);font-weight:500;margin:0 0 20px}
 #authGate input{width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;border:1px solid var(--line,#ccc);border-radius:8px;font-size:14px;font-family:inherit}
-#authGate button{width:100%;padding:10px;border:none;border-radius:8px;background:#f2770e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+#authGate .pwrap{position:relative}
+#authGate .pwrap input{padding-left:38px}
+#authGate .pwtoggle{position:absolute;left:8px;top:0;bottom:10px;width:28px;background:transparent;border:0;padding:0;cursor:pointer;color:var(--muted,#888);display:flex;align-items:center;justify-content:center}
+#authGate .pwtoggle:hover{color:var(--ink,#333)}
+#authGate button[type=submit]{width:100%;padding:10px;border:none;border-radius:8px;background:#f2770e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
 #authGate button:hover{background:#d9680c}
 #authGate .err{color:#d33;font-size:12px;min-height:16px;margin-top:8px}
 
@@ -193,7 +197,7 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
     <h2>برای ورود به داشبورد، اطلاعات ورود را وارد کنید</h2>
     <form id="authForm" autocomplete="off">
       <input type="text" id="authUser" placeholder="نام کاربری" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
-      <input type="password" id="authPass" placeholder="رمز عبور" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="pwrap"><input type="password" id="authPass" placeholder="رمز عبور" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false"><button type="button" class="pwtoggle" id="pwToggle" aria-label="نمایش رمز عبور" aria-pressed="false"><svg id="pwIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
       <button type="submit">ورود</button>
       <div class="err" id="authErr"></div>
     </form>
@@ -3822,6 +3826,16 @@ TVL.app = (function(){
         const u=document.getElementById('authUser').value.trim().toLowerCase();
         const p=document.getElementById('authPass').value.trim();
         if(u===U&&p===P){ sessionStorage.setItem(KEY,'1'); unlock(); } else { denied(); }
+      });
+      const pwIn=document.getElementById('authPass'), pwBtn=document.getElementById('pwToggle'), pwIcon=document.getElementById('pwIcon');
+      pwBtn.addEventListener('click',()=>{
+        const shown=pwIn.type==='text';
+        pwIn.type=shown?'password':'text';
+        pwBtn.setAttribute('aria-pressed',String(!shown));
+        pwBtn.setAttribute('aria-label',shown?'نمایش رمز عبور':'پنهان کردن رمز عبور');
+        pwIcon.innerHTML=shown
+          ?'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/>'
+          :'<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.6 18.6 0 0 1 4.22-5.19M9.9 4.24A9.12 9.12 0 0 1 12 5c7 0 11 7 11 7a18.6 18.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
       });
     });
   }
