@@ -2429,7 +2429,7 @@ TVL.alerts = (function(){
           const days=[...new Set([...curD.keys(),...prevD.keys()])].map(dy=>({day:dy,change:(curD.get(dy)||0)-(prevD.get(dy)||0)})).filter(x=>x.change!==0).sort((a,b)=>Math.abs(b.change)-Math.abs(a.change));
           const dup=days.filter(x=>x.change>0), ddn=days.filter(x=>x.change<0).sort((a,b)=>a.change-b.change);
           const dtop=arr=>arr.slice(0,3).map(x=>'روز '+F.n(x.day)+' ('+F.sgnN(x.change)+')').join('، ')||'—';
-          blk.why={fact:(chanNoBreak?'این کانال داده‌ی تفکیک‌شده (نماینده/استان/شهر) ندارد؛ به‌جای آن، تغییر بین روزهای ماه تجزیه شده است.':'فیلتر فعلی به یک نماینده محدود است؛ به‌جای تجزیه بین نمایندگان (که اینجا بی‌معنی است)، تغییر بین روزهای این نماینده تجزیه شده است.'),evidence:'بیشترین افزایش روزانه: '+dtop(dup)+' | بیشترین کاهش روزانه: '+dtop(ddn),interp:'این تجزیه توصیفی است؛ '+CAUSE};
+          blk.why={fact:(chanNoBreak?'تغییر بین روزهای ماه تجزیه شده است.':'فیلتر فعلی به یک نماینده محدود است؛ به‌جای تجزیه بین نمایندگان (که اینجا بی‌معنی است)، تغییر بین روزهای این نماینده تجزیه شده است.'),evidence:'بیشترین افزایش روزانه: '+dtop(dup)+' | بیشترین کاهش روزانه: '+dtop(ddn),interp:'این تجزیه توصیفی است؛ '+CAUSE};
           const mon=TVL.metrics.bucket(pm.base,'monthly'); const curKey=per.months&&per.months.length?per.months[per.months.length-1]:null;
           const others=mon.filter(b=>b.key!==curKey&&b.v>0);
           if(others.length){
@@ -3117,7 +3117,7 @@ TVL.views.overview={render(app){
     const trend=granCtl+Ch.slot(Ch.bar(bk.map(b=>({l:b.label,v:b.v,cls:(trendGran==='yearly'?selYears.has(b.key):inP.has(b.key))?'':'mut',tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به '+(trendGran==='yearly'?'سال':'ماه')+' قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:260,title:'روند '+(trendGran==='yearly'?'سالانه':'ماهانه'),rot:trendGran==='monthly',scrollMin:trendGran==='monthly'?40:undefined}));
     const top=app.alerts.filter(a=>a.product===p&&a.kind!=='opportunity'&&a.severity==='High').slice(0,4);
     return TVL.kpi.row(pm,mt.period,p)
-      +H.panel('چرا فروش تغییر کرد؟',noBreakdown?'این کانال داده‌ی تفکیک‌شده (نماینده/استان/شهر) ندارد؛ تغییر کل به سهم هر روز از ماه تجزیه شده است (فعلی − قبلی).':'تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی). ستون «مشارکت» یعنی سهم این ردیف از مجموع رشدها (اگر خودش رشد کرده) یا از مجموع افت‌ها (اگر خودش افت کرده) — نه از تغییر خالص کل؛ همیشه هم‌جهت با رشد/افت خودِ همان ردیف است.',drv)
+      +H.panel('چرا فروش تغییر کرد؟',noBreakdown?'تغییر کل به سهم هر روز از ماه تجزیه شده است (فعلی − قبلی).':'تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی). ستون «مشارکت» یعنی سهم این ردیف از مجموع رشدها (اگر خودش رشد کرده) یا از مجموع افت‌ها (اگر خودش افت کرده) — نه از تغییر خالص کل؛ همیشه هم‌جهت با رشد/افت خودِ همان ردیف است.',drv)
       +H.panel('روند ماهانه','ستون‌های پررنگ = ماه‌های بازه‌ی انتخابی. واحد: '+C.measure.unit,trend)
       +H.panel('گزارش مدیریتی — '+esc(mt.period.label),'پاسخ هفت پرسش اصلی، با عدد و شواهد. علت فقط وقتی اعلام می‌شود که در داده مستند باشد.',story7)
       +(top.length?H.panel('هشدارهای با اولویت بالا','برای همه‌ی هشدارها به تب «هشدارها و فرصت‌ها» بروید.',top.map(a=>'<div class="alert high"><h3>'+esc(a.title)+'</h3><div class="meta">'+esc(a.ruleLabel)+' · '+esc(a.metric)+'</div></div>').join('')):''); });
