@@ -2784,7 +2784,13 @@ TVL.filtersUI = (function(){
   const clearRangeUi=app=>{ ['rFrom','rTo','cFrom','cTo'].forEach(k=>{ delete app.ui[k+'Y']; delete app.ui[k+'M']; delete app.ui[k+'D']; }); delete app.ui.cmpOn; };
   const F=TVL.fmt, Fi=TVL.filters, esc=F.esc, N=TVL.norm, J=TVL.jalali, C=TVL.config;
   const MS_KEYS=['provinces','cities','reps','channels','customers','productGroups'];
-  function yearRange(ds){ const a=J.fromJdn(ds.meta.dateMin).y,b=J.fromJdn(ds.meta.dateMax).y; const out=[]; for(let y=a;y<=b;y++) out.push(y); return out; }
+  function yearRange(ds,st){
+    let a,b;
+    if(st){ let min=null,max=null; ds.records.forEach(r=>{ if(Fi.match(r,st,null)){ if(min===null||r.jdn<min) min=r.jdn; if(max===null||r.jdn>max) max=r.jdn; } });
+      if(min===null){ a=J.fromJdn(ds.meta.dateMin).y; b=J.fromJdn(ds.meta.dateMax).y; } else { a=J.fromJdn(min).y; b=J.fromJdn(max).y; } }
+    else { a=J.fromJdn(ds.meta.dateMin).y; b=J.fromJdn(ds.meta.dateMax).y; }
+    const out=[]; for(let y=a;y<=b;y++) out.push(y); return out;
+  }
   /* three plain <select> elements (day/month/year) instead of a typed text field — works the same in every keyboard/browser, no RTL/LTR fighting. */
   function dateSelects(id,y,m,d,years){
     const dn=J.monthLength(y,m);
@@ -2845,7 +2851,7 @@ TVL.filtersUI = (function(){
     const chanBtns=channelProducts.filter(p=>ds.meta.products.includes(p)).length?'<button data-chan="__rep__" class="'+(chanOnRep?'on':'')+'" aria-pressed="'+chanOnRep+'">نماینده</button>'+channelProducts.filter(p=>ds.meta.products.includes(p)).map(p=>'<button data-chan="'+esc(p)+'" class="'+(st.products.includes(p)?'on':'')+' '+TVL.vh.accent(p)+'" aria-pressed="'+st.products.includes(p)+'">'+esc(p)+'</button>').join(''):'';
     const presetsField=pre.length>PRESET_INLINE_MAX?presetsDropdownHtml(app,pre,fMonths):('<div class="seg">'+pre.map(x=>{ const on=JSON.stringify(x.period)===JSON.stringify(st.period)||(x.id==='all'&&st.period.mode==='all')||(x.id==='last'&&st.period.mode==='months'&&st.period.months.length===1&&st.period.months[0]===fMonths[fMonths.length-1]&&st.period.kind==='month'); return '<button data-preset="'+x.id+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'">'+esc(x.label)+'</button>'; }).join('')+'</div>');
     const monthsField=fMonths.length>MONTH_INLINE_MAX?monthsDropdownHtml(app,fMonths):('<div class="mchips">'+fMonths.map(k=>{ const o=J.fromMonthKey(k); const on=st.period.mode==='months'&&st.period.months.includes(k); return '<button class="mchip'+(on?' on':'')+'" data-month="'+k+'" aria-pressed="'+on+'">'+esc(F.monthLabel(o.y,o.m))+'</button>'; }).join('')+'</div>');
-    const years=yearRange(ds);
+    const years=yearRange(ds,st);
     const defFrom=J.fromJdn(per.from), defTo=J.fromJdn(per.to);
     const defCFrom=per.prev?J.fromJdn(per.prev.from):J.fromJdn(TVL.period.shiftDate(per.from,-1)), defCTo=per.prev?J.fromJdn(per.prev.to):J.fromJdn(TVL.period.shiftDate(per.to,-1));
     const gv=(k,part,def)=>app.ui[k+part]!==undefined?app.ui[k+part]:def;
