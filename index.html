@@ -1145,8 +1145,14 @@ TVL.period = (function(){
     if(!w) return ()=>false; const set=w.months?new Set(w.months):null;
     return r=>r.jdn>=w.from&&r.jdn<=w.to&&(!set||set.has(mk(r.year,r.month)));
   }
-  function presets(ds){
-    const ms=ds.meta.months; if(!ms.length) return [];
+  function monthsFor(ds,st){
+    if(!st) return ds.meta.months;
+    const Fi=TVL.filters, have=new Set(); ds.records.forEach(r=>{ if(Fi.match(r,st,null)) have.add(mk(r.year,r.month)); });
+    return ds.meta.months.filter(k=>have.has(k));
+  }
+  function presets(ds,st){
+    const ms=monthsFor(ds,st);
+    if(!ms.length) return [];
     const list=[{id:'last',label:'آخرین ماه',period:{mode:'months',kind:'month',months:[ms[ms.length-1]]}}];
     const seasons=new Map(); ms.forEach(k=>{ const o=J.fromMonthKey(k); const s=o.y*4+J.seasonOf(o.m); if(!seasons.has(s)) seasons.set(s,[]); seasons.get(s).push(k); });
     [...seasons].sort((a,b)=>a[0]-b[0]).forEach(([s,ks])=>{ const y=Math.floor(s/4),q=s%4; const full=[]; for(let i=0;i<3;i++) full.push(mk(y,q*3+1+i));
@@ -1156,7 +1162,7 @@ TVL.period = (function(){
     list.push({id:'all',label:'کل داده',period:{mode:'all',kind:'all'}});
     return list;
   }
-  return {resolve,getComparisonPeriods,matcher,presets,defaultPeriod,label,mStart,mEnd,mName,workingDaysOfMonth,workingDaysInRange,contiguous,rangeLabel,isPartialMonth,shiftDate,dayRangeLabel,monthEq};
+  return {resolve,getComparisonPeriods,matcher,presets,monthsFor,defaultPeriod,label,mStart,mEnd,mName,workingDaysOfMonth,workingDaysInRange,contiguous,rangeLabel,isPartialMonth,shiftDate,dayRangeLabel,monthEq};
 })();
 
 /* ---------- core/filters.js ---------- */
@@ -2771,10 +2777,11 @@ TVL.filtersUI = (function(){
         +opts.filter(o=>!q||o.label.includes(q)).map(o=>'<li><label><input type="checkbox" value="'+esc(o.value)+'"'+(sel.includes(o.value)?' checked':'')+'> <span>'+esc(o.label)+'</span><span class="cnt">'+F.n(o.count)+'</span></label></li>').join('')+(opts.length?'':'<li class="empty">گزینه‌ای نیست</li>')+'</ul></div>':'')+'</div>';
   }
   function render(app){
-    const ds=app.ds,st=app.st; const per=TVL.period.resolve(ds,st.period); const pre=TVL.period.presets(ds);
+    const ds=app.ds,st=app.st; const per=TVL.period.resolve(ds,st.period); const pre=TVL.period.presets(ds,st);
+    const fMonths=TVL.period.monthsFor(ds,st);
     const prodBtns=ds.meta.products.map(p=>'<button data-prod="'+esc(p)+'" class="'+(st.products.includes(p)?'on':'')+' '+TVL.vh.accent(p)+'" aria-pressed="'+st.products.includes(p)+'">'+esc(p)+'</button>').join('');
-    const presetBtns=pre.map(x=>{ const on=JSON.stringify(x.period)===JSON.stringify(st.period)||(x.id==='all'&&st.period.mode==='all')||(x.id==='last'&&st.period.mode==='months'&&st.period.months.length===1&&st.period.months[0]===ds.meta.months[ds.meta.months.length-1]&&st.period.kind==='month'); return '<button data-preset="'+x.id+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'">'+esc(x.label)+'</button>'; }).join('');
-    const monthChips=ds.meta.months.map(k=>{ const o=J.fromMonthKey(k); const on=st.period.mode==='months'&&st.period.months.includes(k); return '<button class="mchip'+(on?' on':'')+'" data-month="'+k+'" aria-pressed="'+on+'">'+esc(F.monthLabel(o.y,o.m))+'</button>'; }).join('');
+    const presetBtns=pre.map(x=>{ const on=JSON.stringify(x.period)===JSON.stringify(st.period)||(x.id==='all'&&st.period.mode==='all')||(x.id==='last'&&st.period.mode==='months'&&st.period.months.length===1&&st.period.months[0]===fMonths[fMonths.length-1]&&st.period.kind==='month'); return '<button data-preset="'+x.id+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'">'+esc(x.label)+'</button>'; }).join('');
+    const monthChips=fMonths.map(k=>{ const o=J.fromMonthKey(k); const on=st.period.mode==='months'&&st.period.months.includes(k); return '<button class="mchip'+(on?' on':'')+'" data-month="'+k+'" aria-pressed="'+on+'">'+esc(F.monthLabel(o.y,o.m))+'</button>'; }).join('');
     const years=yearRange(ds);
     const defFrom=J.fromJdn(per.from), defTo=J.fromJdn(per.to);
     const defCFrom=per.prev?J.fromJdn(per.prev.from):J.fromJdn(TVL.period.shiftDate(per.from,-1)), defCTo=per.prev?J.fromJdn(per.prev.to):J.fromJdn(TVL.period.shiftDate(per.to,-1));
@@ -2802,7 +2809,7 @@ TVL.filtersUI = (function(){
     const root=document.getElementById('filters');
     root.addEventListener('click',e=>{
       const pb=e.target.closest('[data-prod]'); if(pb){ const p=pb.dataset.prod; const multi=e.ctrlKey||e.metaKey||e.shiftKey; app.setFilters(st=>{ if(multi){ st.products=st.products.includes(p)?st.products.filter(x=>x!==p):st.products.concat(p); if(!st.products.length) st.products=[p]; } else st.products=[p]; }); return; }
-      const pr=e.target.closest('[data-preset]'); if(pr){ const x=TVL.period.presets(app.ds).find(y=>y.id===pr.dataset.preset); if(x){ clearRangeUi(app); app.setFilters(st=>{ st.period=JSON.parse(JSON.stringify(x.period)); }); } return; }
+      const pr=e.target.closest('[data-preset]'); if(pr){ const x=TVL.period.presets(app.ds,app.st).find(y=>y.id===pr.dataset.preset); if(x){ clearRangeUi(app); app.setFilters(st=>{ st.period=JSON.parse(JSON.stringify(x.period)); }); } return; }
       const mc=e.target.closest('[data-month]'); if(mc){ clearRangeUi(app); const k=+mc.dataset.month; const multi=e.ctrlKey||e.metaKey||e.shiftKey; app.setFilters(st=>{
         let ms; if(!multi) ms=[k]; else { ms=st.period.mode==='months'?st.period.months.slice():[]; ms=ms.includes(k)?ms.filter(x=>x!==k):ms.concat(k); if(!ms.length) ms=[k]; }
         ms.sort((a,b)=>a-b); st.period={mode:'months',kind:ms.length===1?'month':'custom-months',months:ms}; }); return; }
