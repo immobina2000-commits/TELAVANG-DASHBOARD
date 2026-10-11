@@ -2626,7 +2626,11 @@ TVL.charts = (function(){
     const labLen=o.rot?Math.max(...items.map(i=>(i.l||'').length),1):0;
     const pad={l:padL(max),r:14,t:22,b:o.rot?Math.min(170,Math.max(60,labLen*6.3+18)):34};
     const bw=(W-pad.l-pad.r)/n;
-    const step=1;
+    /* Rotated (-90°) labels have a tiny horizontal footprint, so every bar can keep its own label
+       (see note above) — but un-rotated, horizontally-centred labels (e.g. a monthly trend with
+       many months of history) collide once there isn't enough width per bar, so those still need
+       the classic "skip every Nth label" treatment, sized from the available pixel budget. */
+    const step=o.rot?1:Math.max(1,Math.ceil(n*46/(W-pad.l-pad.r)));
     let s=axisY(W,H,pad,max,4);
     /* Value labels must never collide: estimate each number's rendered width from its digit/
        separator count (Persian numerals ≈ monospace at this font-size) and only show them when
