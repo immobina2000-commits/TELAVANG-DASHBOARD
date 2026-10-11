@@ -133,6 +133,9 @@ td.empty{text-align:center;color:var(--muted);padding:22px} .empty{color:var(--m
 td.muted,tr.muted td{color:var(--muted)}
 /* charts */
 .chart{width:100%;min-height:60px} .chart svg{display:block;max-width:100%;direction:ltr}
+.hscroll{overflow-x:scroll;scrollbar-width:thin;padding-bottom:4px}
+.hscroll::-webkit-scrollbar{height:9px} .hscroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px} .hscroll::-webkit-scrollbar-thumb:hover{background:var(--muted)} .hscroll::-webkit-scrollbar-track{background:var(--surface2)}
+.hscroll-hint{font-size:11.5px;color:var(--muted);margin:0 0 4px}
 svg .grid{stroke:var(--line);stroke-width:1} svg .ax{fill:var(--muted);font-size:11px;font-family:var(--font)} svg .axt{fill:var(--muted);font-size:12px;font-family:var(--font)}
 svg .vl{fill:var(--ink);font-size:11px;font-weight:700;font-family:var(--font)} svg .bar{fill:var(--accent)} svg .bar:hover,svg .bar:focus{opacity:.8}
 svg .bar.mut{fill:var(--line)} svg .bar.neg{fill:var(--neg)}
@@ -2604,6 +2607,14 @@ TVL.ui = (function(){
 TVL.charts = (function(){
   const F=TVL.fmt, esc=F.esc; const slots=[];
   const reset=()=>{ slots.length=0; };
+  /* A horizontally-scrollable chart (.hscroll) needs more than a thin native scrollbar to be
+     discoverable — most people's first move is the mouse wheel, which scrolls the PAGE vertically
+     by default and never touches the chart's own horizontal scroll. Redirect vertical wheel input
+     into horizontal scroll while the pointer is over such a chart. */
+  document.addEventListener('wheel',e=>{
+    const el=e.target.closest('.hscroll'); if(!el||el.scrollWidth<=el.clientWidth) return;
+    el.scrollLeft-=e.deltaY; e.preventDefault();
+  },{passive:false});
   function slot(fn,cls){ const i=slots.push(fn)-1; return '<div class="chart '+(cls||'')+'" data-slot="'+i+'"></div>'; }
   function flush(root){ (root||document).querySelectorAll('[data-slot]').forEach(el=>{ const fn=slots[+el.dataset.slot]; if(!fn) return; try{ el.innerHTML=fn(Math.max(280,el.clientWidth||600)); }catch(e){ el.innerHTML='<div class="empty">خطا در رسم نمودار: '+esc(e.message)+'</div>'; console.error(e); } }); }
   const rt=t=>'\u202B'+t+'\u202C';
@@ -2655,8 +2666,11 @@ TVL.charts = (function(){
       if(i%step===0&&it.l!=='') s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-pad.b+14)+'" text-anchor="'+(o.rot?'end':'middle')+'"'+(o.rot?' transform="rotate(-90 '+(x+bw/2)+' '+(H-pad.b+14)+')"':'')+'>'+rt(esc(it.l))+'</text>';
       if(showVals) s+='<text class="vl" x="'+(x+bw/2)+'" y="'+(y-5)+'" text-anchor="middle">'+F.n(it.v)+'</text>'; });
     if(o.line){ let d=''; o.line.forEach((v,i)=>{ if(v===null||v===undefined) return; const x=pad.l+i*bw+bw/2,y=H-pad.b-(H-pad.t-pad.b)*v/max; d+=(d?'L':'M')+x.toFixed(1)+','+y.toFixed(1); }); s+='<path class="ln" d="'+d+'"/>'; }
-    const svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.title||'نمودار میله‌ای')+'" data-sum="'+items.reduce((a,b)=>a+b.v,0)+'">'+s+'</svg>';
-    return W>W0?'<div style="overflow-x:auto">'+svg+'</div>':svg; }; }
+    /* The global ".chart svg{max-width:100%}" rule (meant to keep normal charts from overflowing
+       their card) would otherwise shrink this deliberately-wider SVG right back down to the
+       container's width, silently cancelling the scroll — so the scrolled SVG overrides it inline. */
+    const svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'"'+(W>W0?' style="max-width:none"':'')+' role="img" aria-label="'+esc(o.title||'نمودار میله‌ای')+'" data-sum="'+items.reduce((a,b)=>a+b.v,0)+'">'+s+'</svg>';
+    return W>W0?'<div class="hscroll-hint">برای دیدن بقیه‌ی ماه‌ها، روی نمودار اسکرول (چرخ موس) کنید یا نوار پایین نمودار را بکشید.</div><div class="hscroll">'+svg+'</div>':svg; }; }
 
   function lines(xs,series,o){ o=o||{}; return W=>{
     if(!xs.length) return EMPTY; const H=o.H||250; let mx=0; series.forEach(se=>se.vals.forEach(v=>{ if(v!==null&&v>mx) mx=v; })); const max=nice(mx*1.05||1);
