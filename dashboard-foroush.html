@@ -3079,7 +3079,20 @@ TVL.views.overview={render(app){
     const noBreakdown=C.products.some(x=>x.key===p&&x.noBreakdown);
     const dd=pm.drivers, avail=noBreakdown?[]:DIMS.filter(d=>dd.available&&dd.dims[d[0]]); let dim=app.ui.driverDim; if(!avail.find(d=>d[0]===dim)) dim=avail.length?avail[0][0]:null;
     let drv;
-    if(noBreakdown) drv='<div class="empty">این کانال تفکیک نماینده/استان/شهر ندارد؛ فقط عدد کل شبکه در داده موجود است.</div>';
+    if(noBreakdown){
+      /* No rep/province/city to break the change down by — but the daily figures are still real,
+         so break it down by DAY OF MONTH instead (same technique already used one level down,
+         in TVL.alerts.story, once a filter narrows to a single representative). */
+      if(!dd.available) drv='<div class="empty">'+esc(dd.reason)+'</div>';
+      else { const byDay=recs=>{ const m=new Map(); recs.forEach(r=>m.set(r.day,(m.get(r.day)||0)+r.v)); return m; };
+        const curD=byDay(pm.cur), prevD=byDay(pm.prev||[]);
+        const days=[...new Set([...curD.keys(),...prevD.keys()])].map(dy=>{ const cur=curD.get(dy)||0,prev=prevD.get(dy)||0; return {day:dy,label:F.n(dy)+'م',cur,prev,change:cur-prev}; }).filter(x=>x.change!==0).sort((a,b)=>Math.abs(b.change)-Math.abs(a.change));
+        if(!days.length) drv='<div class="empty">تغییری بین روزهای این دوره و دوره‌ی قبل ثبت نشده است.</div>';
+        else { const top=days.slice(0,10); const sumCh=days.reduce((s,e)=>s+e.change,0); const exact=Math.abs(sumCh-dd.total)<1e-6; const id='drv_'+p+'_day';
+          drv='<div class="grid2"><div>'+Ch.hbar(top.map(e=>({l:e.label,v:e.change,tip:'<b>روز '+e.label+'</b><br>فعلی: '+F.n(e.cur)+'<br>قبلی: '+F.n(e.prev)+'<br>تغییر: '+F.sgnN(e.change)})))+'</div>'
+            +'<div>'+UI.table(id,{pageSize:10,rows:top,cols:[{key:'l',label:'روز ماه',cell:r=>esc(r.label)},{key:'c',label:'فعلی',num:true,cell:r=>F.n(r.cur)},{key:'p',label:'قبلی',num:true,cell:r=>F.n(r.prev)},{key:'d',label:'تغییر',num:true,cell:r=>H.chg(r.change,r.prev)}]})+'</div></div>'
+            +'<div class="note '+(exact?'':'bad')+'">جمع تغییر همه‌ی روزها = '+F.sgnN(sumCh)+' — تغییر کل = '+F.sgnN(dd.total)+(exact?' ✓ تجزیه دقیق است':' ✗ مغایرت!')+'. این تجزیه توصیفی است و علت را مشخص نمی‌کند.</div>'; } }
+    }
     else if(!dd.available) drv='<div class="empty">'+esc(dd.reason)+'</div>';
     else if(!dim) drv='<div class="empty">بعدی برای تجزیه وجود ندارد.</div>';
     else { const D=dd.dims[dim]; const top=D.rows.slice(0,10); const id='drv_'+p+dim;
@@ -3098,7 +3111,7 @@ TVL.views.overview={render(app){
     const trend=granCtl+Ch.slot(Ch.bar(bk.map(b=>({l:b.label,v:b.v,cls:(trendGran==='yearly'?selYears.has(b.key):inP.has(b.key))?'':'mut',tip:'<b>'+esc(b.label)+'</b><br>فروش: '+F.n(b.v)+'<br>تغییر نسبت به '+(trendGran==='yearly'?'سال':'ماه')+' قبل: '+F.sgnN(b.change)+'<br>رشد: '+F.sgn(b.growth)+'<br>روز فروش: '+F.n(b.activeDays)})),{H:260,title:'روند '+(trendGran==='yearly'?'سالانه':'ماهانه'),rot:trendGran==='monthly',scrollMin:trendGran==='monthly'?40:undefined}));
     const top=app.alerts.filter(a=>a.product===p&&a.kind!=='opportunity'&&a.severity==='High').slice(0,4);
     return TVL.kpi.row(pm,mt.period,p)
-      +H.panel('چرا فروش تغییر کرد؟',noBreakdown?'این کانال داده‌ی تفکیک‌شده (نماینده/استان/شهر) ندارد.':'تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی). ستون «مشارکت» یعنی سهم این ردیف از مجموع رشدها (اگر خودش رشد کرده) یا از مجموع افت‌ها (اگر خودش افت کرده) — نه از تغییر خالص کل؛ همیشه هم‌جهت با رشد/افت خودِ همان ردیف است.',drv)
+      +H.panel('چرا فروش تغییر کرد؟',noBreakdown?'این کانال داده‌ی تفکیک‌شده (نماینده/استان/شهر) ندارد؛ تغییر کل به سهم هر روز از ماه تجزیه شده است (فعلی − قبلی).':'تغییر کل فروش به سهم هر نماینده/استان/شهر تجزیه شده است (فعلی − قبلی). ستون «مشارکت» یعنی سهم این ردیف از مجموع رشدها (اگر خودش رشد کرده) یا از مجموع افت‌ها (اگر خودش افت کرده) — نه از تغییر خالص کل؛ همیشه هم‌جهت با رشد/افت خودِ همان ردیف است.',drv)
       +H.panel('روند ماهانه','ستون‌های پررنگ = ماه‌های بازه‌ی انتخابی. واحد: '+C.measure.unit,trend)
       +H.panel('گزارش مدیریتی — '+esc(mt.period.label),'پاسخ هفت پرسش اصلی، با عدد و شواهد. علت فقط وقتی اعلام می‌شود که در داده مستند باشد.',story7)
       +(top.length?H.panel('هشدارهای با اولویت بالا','برای همه‌ی هشدارها به تب «هشدارها و فرصت‌ها» بروید.',top.map(a=>'<div class="alert high"><h3>'+esc(a.title)+'</h3><div class="meta">'+esc(a.ruleLabel)+' · '+esc(a.metric)+'</div></div>').join('')):''); });
