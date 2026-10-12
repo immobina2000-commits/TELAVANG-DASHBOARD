@@ -3903,6 +3903,39 @@ TVL.views.manufacturing={render(app){
 
   const mix=Ch.hbar(rows.slice().sort((a,b)=>(selMonth?b.actual-a.actual:b.totalActual-a.totalActual)).map(r=>{ const v=selMonth?r.actual:r.totalActual; return {l:short(r.name),v,r:F.pct(totalActual?v/totalActual:null,1),tip:'<b>'+esc(r.name)+'</b><br>تولید واقعی: '+F.n(v)+'<br>سهم از کل تولید'+(selMonth?' این ماه':'')+': '+F.pct(totalActual?v/totalActual:null)}; }));
 
+  /* ===== تولید در برابر فروش — cross-reference with the SALES dataset ===========================
+     Only possible at the whole-تلابار level: production is tracked per flavor/SKU but sales is
+     only ever recorded as one aggregate "تلابار" product (no per-flavor column), so a flavor-level
+     match is not possible with the data on hand — this compares total monthly production against
+     total monthly sales for تلابار, which the sales dataset happens to cover for the exact same
+     ۷ months (فروردین–مهر ۱۴۰۵), a clean like-for-like window. "مازاد/کسری" = تولید − فروش: a
+     persistently positive cumulative value means production has been running ahead of sales
+     (stock building up); persistently negative means sales have been drawing down stock faster
+     than it's being replaced. Neither is inherently good or bad without knowing opening stock —
+     this only reports the pattern, same descriptive-not-causal stance as the rest of this tab. */
+  const salesByMonth=new Map();
+  (app.ds.records||[]).forEach(r=>{ if(r.product==='تلابار'&&r.year===P.YEAR) salesByMonth.set(r.monthName,(salesByMonth.get(r.monthName)||0)+r.v); });
+  let cum=0;
+  const combined=P.MONTH_ORDER.map(m=>{ const prod=(P.RAW[m]||[]).reduce((s,x)=>s+x[2],0); const sales=salesByMonth.get(m)||0; const gap=prod-sales; cum+=gap; return {m,prod,sales,gap,cum}; });
+  const cTotalProd=combined.reduce((s,x)=>s+x.prod,0), cTotalSales=combined.reduce((s,x)=>s+x.sales,0);
+  const psTrend=Ch.slot(Ch.lines(combined.map(x=>x.m),[{name:'تولید واقعی',vals:combined.map(x=>x.prod),c:1},{name:'فروش',vals:combined.map(x=>x.sales),c:3}],{H:230,title:'تولید در برابر فروش — روند ماهانه (تلابار)',endLabels:true}));
+  const gapChart=Ch.hbar(combined.slice().reverse().map(x=>({l:x.m,v:x.gap,r:F.sgnN(x.cum)+' تجمعی',tip:'<b>'+x.m+'</b><br>تولید: '+F.n(x.prod)+'<br>فروش: '+F.n(x.sales)+'<br>مازاد/کسری این ماه: '+F.sgnN(x.gap)+'<br>مازاد/کسری تجمعی تا این ماه: '+F.sgnN(x.cum)})));
+  const psCols=[
+    {key:'m',label:'ماه',cell:r=>esc(r.m),csv:r=>r.m},
+    {key:'p',label:'تولید واقعی',num:true,cell:r=>F.n(r.prod),csv:r=>r.prod},
+    {key:'s',label:'فروش',num:true,cell:r=>F.n(r.sales),csv:r=>r.sales},
+    {key:'g',label:'مازاد/کسری این ماه',num:true,cell:r=>H.chg(r.gap,r.sales),csv:r=>r.gap},
+    {key:'c',label:'مازاد/کسری تجمعی',num:true,cell:r=>H.chg(r.cum,cTotalSales),csv:r=>r.cum}
+  ];
+  const biggestGapM=combined.slice().sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap))[0];
+  const finalCum=combined[combined.length-1].cum;
+  const psNarrative='<div class="story"><div class="q"><h3>خلاصه</h3><div class="f">در کل بازه، '+F.n(cTotalProd)+' عدد تولید شده در برابر '+F.n(cTotalSales)+' عدد فروش‌رفته — یعنی '+(finalCum>=0?'مازاد تجمعی '+F.n(finalCum):'کسری تجمعی '+F.n(Math.abs(finalCum)))+' عدد تا پایان '+combined[combined.length-1].m+'.</div>'
+    +'<div class="e">بزرگ‌ترین فاصله‌ی تولید و فروش در یک ماه: <b>'+biggestGapM.m+'</b> ('+F.sgnN(biggestGapM.gap)+' — '+(biggestGapM.gap>=0?'تولید بیشتر از فروش':'فروش بیشتر از تولید')+').</div></div></div>';
+
+  const psPanel=H.panel('تولید در برابر فروش (تلابار)','مقایسه فقط در سطح کل تلابار ممکن است، نه هر طعم — چون فروش به تفکیک طعم ثبت نمی‌شود. بازه‌ی فروش دقیقاً همان ۷ ماه تولید (فروردین تا مهر ۱۴۰۵) را پوشش می‌دهد.',psTrend+psNarrative)
+    +H.panel('مازاد/کسری ماهانه و تجمعی','ستون‌ها = تولید منهای فروش هر ماه؛ عدد سمت راست = مازاد/کسری تجمعی تا همان ماه. مازاد مثبت یعنی موجودی در حال افزایش، منفی یعنی فروش از تولید همان ماه جلو زده.',gapChart)
+    +H.panel('جدول تولید در برابر فروش',null,UI.table('mfgPsTbl',{cols:psCols,rows:combined,pageSize:10,exportName:'talabar-production-vs-sales'}));
+
   /* "تحلیل و یافته‌ها" — a written analysis panel, computed fresh from the same data every
      render (never hardcoded numbers) so it stays correct if the production file is ever
      updated. Only shown in the 7-month view; a single month has no trend/mix-of-months to
@@ -3936,6 +3969,7 @@ TVL.views.manufacturing={render(app){
     +H.panel('خلاصه‌ی دوره','سفارش تولید در برابر تولید واقعی، '+periodLabel+'. منبع: گزارش تولید تلابار (بدون ضایعات). این گزارش فیلتر ماه مخصوص به خودش را دارد (بالا) و با فیلترهای بالای صفحه کار نمی‌کند.',kpis)
     +H.panel('روند ماهانه','خط‌چین = سفارش تولید؛ خط پر = تولید واقعی (همه‌ی طعم‌ها جمع شده).',trend)
     +analysis
+    +psPanel
     +H.panel('سهم هر طعم از کل تولید واقعی'+(selMonth?' ('+selMonth+')':' (۷ ماه)'),'',mix)
     +H.panel('جدول کامل طعم‌ها',null,UI.table('mfgTbl',{cols,rows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production'+(selMonth?'-'+selMonth:''),sort:['o',-1]}));
 },bind(app,root){ root.querySelectorAll('[data-mfgmonth]').forEach(b=>b.onclick=()=>{ app.ui.mfgMonth=b.dataset.mfgmonth==='__all__'?null:b.dataset.mfgmonth; app.render(); }); }};
