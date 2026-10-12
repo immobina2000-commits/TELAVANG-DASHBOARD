@@ -3853,51 +3853,84 @@ TVL.views.forecast={render(app){
    record stream, so it renders the same regardless of the global product/date filters. ===== */
 TVL.views.manufacturing={render(app){
   const F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,esc=F.esc,P=TVL.production;
+  const short=n=>n.replace('پروتئین بار ','').replace(' برند تلابار','');
   const mt=P.monthlyTotals();
-  const totalOrder=mt.reduce((s,m)=>s+m.order,0), totalActual=mt.reduce((s,m)=>s+m.actual,0);
-  const overallRate=totalOrder>0?totalActual/totalOrder:null;
   const items=P.summary();
-  /* Ranking by raw rate (lowest vs highest) silently assumes "lowest = under-production = bad" —
-     wrong whenever a line only ever over-produces (as تلابار does here: every month is ≥100%),
-     where "lowest" just means "closest to plan" and is actually the best outcome, not a problem.
-     Schedule adherence is a two-sided metric: rank by distance from 100% either direction, so
-     "needs review" always means a real deviation, over or under. */
-  const byDeviation=items.filter(i=>i.avgRate!==null).slice().sort((a,b)=>Math.abs(a.avgRate-1)-Math.abs(b.avgRate-1));
-  const closest=byDeviation.slice(0,3), furthest=byDeviation.slice(-3).reverse();
-  const mostVolatile=items.filter(i=>i.cv!==null).slice().sort((a,b)=>b.cv-a.cv).slice(0,3);
-
-  const kpis='<div class="kpis">'
-    +TVL.kpi.card({label:'نرخ تحقق برنامه‌ی تولید (کل ۷ ماه)',raw:overallRate!==null?F.pct(overallRate):'—',note:'مجموع تولید واقعی ÷ مجموع سفارش تولید، در همه‌ی طعم‌ها و ماه‌ها'})
-    +TVL.kpi.card({label:'سفارش تولید کل',value:totalOrder,unit:'عدد'})
-    +TVL.kpi.card({label:'تولید واقعی کل',value:totalActual,unit:'عدد'})
-    +TVL.kpi.card({label:'انحراف کل',raw:F.sgnN(totalActual-totalOrder),extra:'تولید واقعی − سفارش تولید'})
-    +TVL.kpi.card({label:'تعداد طعم محصول',value:items.length})
+  /* This report has its own month selector instead of the global filter bar: the top filter's
+     "ماه‌ها" spans years of SALES data and has nothing to do with these 7 fixed production-order
+     months, so wiring it in would be confusing (most of its options would show nothing here).
+     Default is the full 7-month view; picking one month switches every section below to that
+     month's own numbers. */
+  const selMonth=(app.ui.mfgMonth&&P.MONTH_ORDER.includes(app.ui.mfgMonth))?app.ui.mfgMonth:null;
+  const monthCtl='<div class="seg" style="margin-bottom:10px;flex-wrap:wrap">'
+    +'<button data-mfgmonth="__all__" class="'+(!selMonth?'on':'')+'">همه (۷ ماه)</button>'
+    +P.MONTH_ORDER.map(m=>'<button data-mfgmonth="'+m+'" class="'+(selMonth===m?'on':'')+'">'+m+'</button>').join('')
     +'</div>';
 
-  const trend=Ch.slot(Ch.bar(mt.map(x=>({l:x.m,v:x.rate!==null?Math.round(x.rate*1000)/10:0,cls:x.rate!==null&&x.rate<1?'mut':'',tip:'<b>'+x.m+'</b><br>سفارش: '+F.n(x.order)+'<br>واقعی: '+F.n(x.actual)+'<br>نرخ تحقق: '+(x.rate!==null?F.pct(x.rate):'—')})),{H:220,title:'نرخ تحقق برنامه‌ی تولید — روند ماهانه',valueLabels:true}));
+  let rows,totalOrder,totalActual,overallRate,periodLabel,closest,furthest,mostVolatile,cols;
+  if(selMonth){
+    rows=(P.RAW[selMonth]||[]).map(([name,order,actual])=>({name,order,actual,rate:order>0?actual/order:null}));
+    totalOrder=rows.reduce((s,r)=>s+r.order,0); totalActual=rows.reduce((s,r)=>s+r.actual,0);
+    overallRate=totalOrder>0?totalActual/totalOrder:null;
+    periodLabel=selMonth+' '+F.n(P.YEAR);
+    const byDev=rows.filter(r=>r.rate!==null).slice().sort((a,b)=>Math.abs(a.rate-1)-Math.abs(b.rate-1));
+    closest=byDev.slice(0,3).map(r=>({name:r.name,avgRate:r.rate,monthsActive:1}));
+    furthest=byDev.slice(-3).reverse().map(r=>({name:r.name,avgRate:r.rate,monthsActive:1}));
+    mostVolatile=[]; // not meaningful for a single month
+    cols=[
+      {key:'n',label:'طعم محصول',cell:r=>esc(short(r.name)),csv:r=>r.name},
+      {key:'o',label:'سفارش تولید',num:true,sortVal:r=>r.order,cell:r=>F.n(r.order),csv:r=>r.order},
+      {key:'a',label:'تولید واقعی',num:true,sortVal:r=>r.actual,cell:r=>F.n(r.actual),csv:r=>r.actual},
+      {key:'d',label:'انحراف',num:true,sortVal:r=>r.actual-r.order,cell:r=>H.chg(r.actual-r.order,r.order),csv:r=>r.actual-r.order},
+      {key:'r',label:'نرخ تحقق',num:true,sortVal:r=>r.rate===null?-1:r.rate,cell:r=>r.rate===null?'<span class="flat">—</span>':F.pct(r.rate),csv:r=>r.rate}
+    ];
+  } else {
+    rows=items;
+    totalOrder=mt.reduce((s,m)=>s+m.order,0); totalActual=mt.reduce((s,m)=>s+m.actual,0);
+    overallRate=totalOrder>0?totalActual/totalOrder:null;
+    periodLabel=P.MONTH_ORDER[0]+' تا '+P.MONTH_ORDER[P.MONTH_ORDER.length-1]+' '+F.n(P.YEAR);
+    /* Ranking by raw rate (lowest vs highest) silently assumes "lowest = under-production = bad" —
+       wrong whenever a line only ever over-produces (as تلابار does here: every month is ≥100%),
+       where "lowest" just means "closest to plan" and is actually the best outcome, not a problem.
+       Schedule adherence is a two-sided metric: rank by distance from 100% either direction, so
+       "needs review" always means a real deviation, over or under. */
+    const byDev=items.filter(i=>i.avgRate!==null).slice().sort((a,b)=>Math.abs(a.avgRate-1)-Math.abs(b.avgRate-1));
+    closest=byDev.slice(0,3); furthest=byDev.slice(-3).reverse();
+    mostVolatile=items.filter(i=>i.cv!==null).slice().sort((a,b)=>b.cv-a.cv).slice(0,3);
+    cols=[
+      {key:'n',label:'طعم محصول',cell:r=>esc(short(r.name)),csv:r=>r.name},
+      {key:'o',label:'سفارش تولید (کل)',num:true,sortVal:r=>r.totalOrder,cell:r=>F.n(r.totalOrder),csv:r=>r.totalOrder},
+      {key:'a',label:'تولید واقعی (کل)',num:true,sortVal:r=>r.totalActual,cell:r=>F.n(r.totalActual),csv:r=>r.totalActual},
+      {key:'d',label:'انحراف',num:true,sortVal:r=>r.totalActual-r.totalOrder,cell:r=>H.chg(r.totalActual-r.totalOrder,r.totalOrder),csv:r=>r.totalActual-r.totalOrder},
+      {key:'r',label:'نرخ تحقق (کل دوره)',num:true,sortVal:r=>r.rate===null?-1:r.rate,cell:r=>r.rate===null?'<span class="flat">—</span>':F.pct(r.rate),csv:r=>r.rate},
+      {key:'avg',label:'میانگین نرخ تحقق ماهانه',num:true,sortVal:r=>r.avgRate===null?-1:r.avgRate,cell:r=>r.avgRate===null?'<span class="flat">—</span>':F.pct(r.avgRate),csv:r=>r.avgRate},
+      {key:'cv',label:'ثبات (پراکندگی نرخ تحقق)',num:true,sortVal:r=>r.cv===null?-1:r.cv,cell:r=>r.cv===null?'<span class="flat">—</span>':UI.badge(r.cv<0.05?'pos':(r.cv<0.15?'sugg':'high'),F.pct(r.cv,1)),csv:r=>r.cv},
+      {key:'m',label:'ماه فعال',num:true,sortVal:r=>r.monthsActive,cell:r=>F.n(r.monthsActive)+' از '+F.n(P.MONTH_ORDER.length),csv:r=>r.monthsActive}
+    ];
+  }
 
-  const mix=Ch.hbar(items.slice().sort((a,b)=>b.totalActual-a.totalActual).map(i=>({l:i.name.replace('پروتئین بار ','').replace(' برند تلابار',''),v:i.totalActual,r:F.pct(totalActual?i.totalActual/totalActual:null,1),tip:'<b>'+esc(i.name)+'</b><br>تولید واقعی (۷ ماه): '+F.n(i.totalActual)+'<br>سهم از کل تولید: '+F.pct(totalActual?i.totalActual/totalActual:null)})));
+  const kpis='<div class="kpis">'
+    +TVL.kpi.card({label:'نرخ تحقق برنامه‌ی تولید',raw:overallRate!==null?F.pct(overallRate):'—',note:'تولید واقعی ÷ سفارش تولید، '+(selMonth?'در '+selMonth:'در همه‌ی طعم‌ها و ماه‌ها')})
+    +TVL.kpi.card({label:'سفارش تولید'+(selMonth?'':' کل'),value:totalOrder,unit:'عدد'})
+    +TVL.kpi.card({label:'تولید واقعی'+(selMonth?'':' کل'),value:totalActual,unit:'عدد'})
+    +TVL.kpi.card({label:'انحراف'+(selMonth?'':' کل'),raw:F.sgnN(totalActual-totalOrder),extra:'تولید واقعی − سفارش تولید'})
+    +TVL.kpi.card({label:'تعداد طعم محصول',value:rows.length})
+    +'</div>';
 
-  const rankCard=(title,list,noteGood)=>H.panel(title,'',list.length?'<div class="kpis">'+list.map(i=>'<div class="kpi"><div class="l">'+esc(i.name.replace('پروتئین بار ','').replace(' برند تلابار',''))+'</div><div class="v">'+F.pct(i.avgRate)+'</div><div class="s">'+F.n(i.monthsActive)+' ماه فعال'+(noteGood?'':' · میانگین نرخ تحقق')+'</div></div>').join('')+'</div>':'<div class="empty">داده‌ای نیست.</div>');
+  const trend=Ch.slot(Ch.bar(mt.map(x=>({l:x.m,v:x.rate!==null?Math.round(x.rate*1000)/10:0,cls:(selMonth?x.m===selMonth:x.rate!==null&&x.rate<1)?'':'mut',tip:'<b>'+x.m+'</b><br>سفارش: '+F.n(x.order)+'<br>واقعی: '+F.n(x.actual)+'<br>نرخ تحقق: '+(x.rate!==null?F.pct(x.rate):'—')})),{H:220,title:'نرخ تحقق برنامه‌ی تولید — روند ماهانه',valueLabels:true}));
 
-  const cols=[
-    {key:'n',label:'طعم محصول',cell:r=>esc(r.name.replace('پروتئین بار ','').replace(' برند تلابار','')),csv:r=>r.name},
-    {key:'o',label:'سفارش تولید (کل)',num:true,sortVal:r=>r.totalOrder,cell:r=>F.n(r.totalOrder),csv:r=>r.totalOrder},
-    {key:'a',label:'تولید واقعی (کل)',num:true,sortVal:r=>r.totalActual,cell:r=>F.n(r.totalActual),csv:r=>r.totalActual},
-    {key:'d',label:'انحراف',num:true,sortVal:r=>r.totalActual-r.totalOrder,cell:r=>H.chg(r.totalActual-r.totalOrder,r.totalOrder),csv:r=>r.totalActual-r.totalOrder},
-    {key:'r',label:'نرخ تحقق (کل دوره)',num:true,sortVal:r=>r.rate===null?-1:r.rate,cell:r=>r.rate===null?'<span class="flat">—</span>':F.pct(r.rate),csv:r=>r.rate},
-    {key:'avg',label:'میانگین نرخ تحقق ماهانه',num:true,sortVal:r=>r.avgRate===null?-1:r.avgRate,cell:r=>r.avgRate===null?'<span class="flat">—</span>':F.pct(r.avgRate),csv:r=>r.avgRate},
-    {key:'cv',label:'ثبات (پراکندگی نرخ تحقق)',num:true,sortVal:r=>r.cv===null?-1:r.cv,cell:r=>r.cv===null?'<span class="flat">—</span>':UI.badge(r.cv<0.05?'pos':(r.cv<0.15?'sugg':'high'),F.pct(r.cv,1)),csv:r=>r.cv},
-    {key:'m',label:'ماه فعال',num:true,sortVal:r=>r.monthsActive,cell:r=>F.n(r.monthsActive)+' از '+F.n(P.MONTH_ORDER.length),csv:r=>r.monthsActive}
-  ];
+  const mix=Ch.hbar(rows.slice().sort((a,b)=>(selMonth?b.actual-a.actual:b.totalActual-a.totalActual)).map(r=>{ const v=selMonth?r.actual:r.totalActual; return {l:short(r.name),v,r:F.pct(totalActual?v/totalActual:null,1),tip:'<b>'+esc(r.name)+'</b><br>تولید واقعی: '+F.n(v)+'<br>سهم از کل تولید'+(selMonth?' این ماه':'')+': '+F.pct(totalActual?v/totalActual:null)}; }));
 
-  return H.panel('خلاصه‌ی دوره','سفارش تولید در برابر تولید واقعی، '+P.MONTH_ORDER[0]+' تا '+P.MONTH_ORDER[P.MONTH_ORDER.length-1]+' '+F.n(P.YEAR)+'. منبع: گزارش تولید تلابار (بدون ضایعات). این گزارش مستقل از فیلترهای بالای صفحه است.',kpis)
-    +H.panel('روند ماهانه‌ی نرخ تحقق','ستون‌ها = تولید واقعی ÷ سفارش تولید در هر ماه (همه‌ی طعم‌ها جمع شده). زیر ۱۰۰٪ = کم‌تولیدی نسبت به برنامه، بالای ۱۰۰٪ = پرتولیدی.',trend)
-    +'<div class="grid2">'+rankCard('نزدیک‌ترین به برنامه',closest,false)+rankCard('بیشترین انحراف از برنامه (نیازمند بررسی)',furthest,false)+'</div>'
-    +rankCard('بی‌ثبات‌ترین طعم‌ها (بیشترین نوسان نرخ تحقق ماه‌به‌ماه)',mostVolatile,false)
-    +H.panel('سهم هر طعم از کل تولید واقعی (۷ ماه)','',mix)
-    +H.panel('جدول کامل طعم‌ها','«ثبات» = ضریب تغییرات (انحراف معیار ÷ میانگین) نرخ تحقق ماهانه؛ سبز = پایدار، زرد = نوسان متوسط، قرمز = نوسان زیاد.',UI.table('mfgTbl',{cols,rows:items,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production',sort:['o',-1]}));
-}};
+  const rankCard=(title,list)=>H.panel(title,'',list.length?'<div class="kpis">'+list.map(i=>'<div class="kpi"><div class="l">'+esc(short(i.name))+'</div><div class="v">'+F.pct(i.avgRate)+'</div><div class="s">'+(selMonth?'نرخ تحقق این ماه':F.n(i.monthsActive)+' ماه فعال · میانگین نرخ تحقق')+'</div></div>').join('')+'</div>':'<div class="empty">داده‌ای نیست.</div>');
+
+  return H.panel('بازه‌ی گزارش',null,monthCtl)
+    +H.panel('خلاصه‌ی دوره','سفارش تولید در برابر تولید واقعی، '+periodLabel+'. منبع: گزارش تولید تلابار (بدون ضایعات). این گزارش فیلتر ماه مخصوص به خودش را دارد (بالا) و با فیلترهای بالای صفحه کار نمی‌کند.',kpis)
+    +H.panel('روند ماهانه‌ی نرخ تحقق','ستون‌ها = تولید واقعی ÷ سفارش تولید در هر ماه (همه‌ی طعم‌ها جمع شده). زیر ۱۰۰٪ = کم‌تولیدی نسبت به برنامه، بالای ۱۰۰٪ = پرتولیدی.'+(selMonth?' ستون پررنگ = ماه انتخاب‌شده.':''),trend)
+    +'<div class="grid2">'+rankCard('نزدیک‌ترین به برنامه',closest)+rankCard('بیشترین انحراف از برنامه (نیازمند بررسی)',furthest)+'</div>'
+    +(mostVolatile.length?rankCard('بی‌ثبات‌ترین طعم‌ها (بیشترین نوسان نرخ تحقق ماه‌به‌ماه)',mostVolatile):'')
+    +H.panel('سهم هر طعم از کل تولید واقعی'+(selMonth?' ('+selMonth+')':' (۷ ماه)'),'',mix)
+    +H.panel('جدول کامل طعم‌ها',selMonth?null:'«ثبات» = ضریب تغییرات (انحراف معیار ÷ میانگین) نرخ تحقق ماهانه؛ سبز = پایدار، زرد = نوسان متوسط، قرمز = نوسان زیاد.',UI.table('mfgTbl',{cols,rows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production'+(selMonth?'-'+selMonth:''),sort:['o',-1]}));
+},bind(app,root){ root.querySelectorAll('[data-mfgmonth]').forEach(b=>b.onclick=()=>{ app.ui.mfgMonth=b.dataset.mfgmonth==='__all__'?null:b.dataset.mfgmonth; app.render(); }); }};
 
 /* ---------- app.js ---------- */
 /* ===== app.js — bootstrap, state, render loop, tabs, theme, persistence (Phase 40, 41, 52, 54) ===== */
