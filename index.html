@@ -1898,6 +1898,20 @@ TVL.production = (function(){
     'شهریور':[['پروتئین بار بادام زمینی برند تلابار',56788,56788],['پروتئین بار طعم بیسکوئیت برند تلابار',71162,71162],['پروتئین بار طعم پسته برند تلابار',45990,45990],['پروتئین بار طعم سیب سبز ماچا برند تلابار',42845,42845],['پروتئین بار طعم شکلات فندوقی برند تلابار',72718,72718],['پروتئین بار طعم قهوه برند تلابار',44163,44163],['پروتئین بار طعم موز چیا برند تلابار',66072,66072],['پروتئین بار طعم میکس بری چیا برند تلابار',43667,43667],['پروتئین بار طعم نارگیلی برند تلابار',47824,47824]],
     'مهر':[['پروتئین بار بادام زمینی برند تلابار',26856,26856],['پروتئین بار طعم بیسکوئیت برند تلابار',26640,26640],['پروتئین بار طعم پسته برند تلابار',71545,71545],['پروتئین بار طعم شکلات فندوقی برند تلابار',27048,27048],['پروتئین بار طعم قهوه برند تلابار',54440,54440],['پروتئین بار طعم موز چیا برند تلابار',43227,43227],['پروتئین بار طعم میکس بری چیا برند تلابار',13494,13494],['پروتئین بار طعم نارگیلی برند تلابار',43587,43587]]
   };
+  /* item -> quantity sold per month, from the representative-channel sales report broken
+     down by flavor (نماینده channel only — not زنجیره‌ای/chain). Independently confirms
+     5 of 7 months exactly against the main sales dataset's aggregate تلابار total; تیر and
+     مهر differ slightly (newer cutoff in this file), noted where shown rather than silently
+     reconciled. */
+  const SALES_RAW = {
+    'فروردین':[['پروتئین بار طعم شکلات فندوقی برند تلابار',13448],['پروتئین بار طعم بیسکوئیت برند تلابار',8016],['پروتئین بار طعم میکس بری چیا برند تلابار',7848],['پروتئین بار طعم پسته برند تلابار',7776],['پروتئین بار طعم نارگیلی برند تلابار',7476],['پروتئین بار طعم قهوه برند تلابار',7278],['پروتئین بار بادام زمینی برند تلابار',7152],['پروتئین بار طعم موز چیا برند تلابار',4812],['پروتئین بار طعم سیب سبز ماچا برند تلابار',4080]],
+    'اردیبهشت':[['پروتئین بار طعم شکلات فندوقی برند تلابار',18216],['پروتئین بار طعم پسته برند تلابار',13560],['پروتئین بار طعم نارگیلی برند تلابار',11652],['پروتئین بار طعم بیسکوئیت برند تلابار',11016],['پروتئین بار طعم قهوه برند تلابار',11016],['پروتئین بار بادام زمینی برند تلابار',10008],['پروتئین بار طعم موز چیا برند تلابار',9984],['پروتئین بار طعم میکس بری چیا برند تلابار',7776],['پروتئین بار طعم سیب سبز ماچا برند تلابار',5964]],
+    'خرداد':[['پروتئین بار طعم شکلات فندوقی برند تلابار',15424],['پروتئین بار طعم پسته برند تلابار',11500],['پروتئین بار طعم نارگیلی برند تلابار',9184],['پروتئین بار طعم بیسکوئیت برند تلابار',8872],['پروتئین بار طعم قهوه برند تلابار',8824],['پروتئین بار طعم موز چیا برند تلابار',8800],['پروتئین بار بادام زمینی برند تلابار',8416],['پروتئین بار طعم میکس بری چیا برند تلابار',7468],['پروتئین بار طعم سیب سبز ماچا برند تلابار',3952]],
+    'تیر':[['پروتئین بار طعم شکلات فندوقی برند تلابار',20616],['پروتئین بار طعم پسته برند تلابار',14052],['پروتئین بار طعم نارگیلی برند تلابار',11832],['پروتئین بار طعم موز چیا برند تلابار',11772],['پروتئین بار طعم قهوه برند تلابار',11520],['پروتئین بار طعم بیسکوئیت برند تلابار',11316],['پروتئین بار طعم میکس بری چیا برند تلابار',9240],['پروتئین بار بادام زمینی برند تلابار',9048],['پروتئین بار طعم سیب سبز ماچا برند تلابار',4524]],
+    'مرداد':[['پروتئین بار طعم شکلات فندوقی برند تلابار',20112],['پروتئین بار طعم پسته برند تلابار',15144],['پروتئین بار طعم بیسکوئیت برند تلابار',13812],['پروتئین بار طعم نارگیلی برند تلابار',12780],['پروتئین بار طعم قهوه برند تلابار',12372],['پروتئین بار طعم موز چیا برند تلابار',12276],['پروتئین بار بادام زمینی برند تلابار',11220],['پروتئین بار طعم میکس بری چیا برند تلابار',9324],['پروتئین بار طعم سیب سبز ماچا برند تلابار',5916]],
+    'شهریور':[['پروتئین بار طعم شکلات فندوقی برند تلابار',28251],['پروتئین بار طعم پسته برند تلابار',22284],['پروتئین بار طعم نارگیلی برند تلابار',20484],['پروتئین بار طعم قهوه برند تلابار',19068],['پروتئین بار طعم بیسکوئیت برند تلابار',18819],['پروتئین بار طعم موز چیا برند تلابار',18456],['پروتئین بار طعم میکس بری چیا برند تلابار',16464],['پروتئین بار بادام زمینی برند تلابار',13320],['پروتئین بار طعم سیب سبز ماچا برند تلابار',8808]],
+    'مهر':[['پروتئین بار طعم شکلات فندوقی برند تلابار',17412],['پروتئین بار طعم پسته برند تلابار',10884],['پروتئین بار طعم موز چیا برند تلابار',9648],['پروتئین بار طعم نارگیلی برند تلابار',8148],['پروتئین بار طعم قهوه برند تلابار',7800],['پروتئین بار بادام زمینی برند تلابار',7776],['پروتئین بار طعم بیسکوئیت برند تلابار',7500],['پروتئین بار طعم میکس بری چیا برند تلابار',5388],['پروتئین بار طعم سیب سبز ماچا برند تلابار',2832]]
+  };
   function items(){ const s=new Set(); MONTH_ORDER.forEach(m=>(RAW[m]||[]).forEach(r=>s.add(r[0]))); return [...s]; }
   function monthlyTotals(){
     return MONTH_ORDER.map(m=>{ const rows=RAW[m]||[]; const order=rows.reduce((s,r)=>s+r[1],0), actual=rows.reduce((s,r)=>s+r[2],0);
@@ -1916,7 +1930,22 @@ TVL.production = (function(){
       return {name,series,totalOrder,totalActual,rate,avgRate,cv,monthsActive:present.length};
     });
   }
-  return {YEAR,MONTH_ORDER,RAW,items,monthlyTotals,summary};
+  function salesItems(){ const s=new Set(); MONTH_ORDER.forEach(m=>(SALES_RAW[m]||[]).forEach(r=>s.add(r[0]))); return [...s]; }
+  function salesTotals(){ return MONTH_ORDER.map(m=>{ const rows=SALES_RAW[m]||[]; return {m,v:rows.reduce((s,r)=>s+r[1],0)}; }); }
+  /* Per-flavor production vs sales, month by month, with a running cumulative surplus/deficit
+     (تولید − فروش) — the flavor-level counterpart of the whole-تلابار comparison, now possible
+     because SALES_RAW is broken down by the same flavor names as RAW. */
+  function flavorCompare(){
+    const names=new Set([...items(),...salesItems()]);
+    return [...names].map(name=>{
+      const series=MONTH_ORDER.map(m=>{ const p=(RAW[m]||[]).find(r=>r[0]===name); const s=(SALES_RAW[m]||[]).find(r=>r[0]===name);
+        const prod=p?p[2]:0, sales=s?s[1]:0; return {m,prod,sales,gap:prod-sales}; });
+      let cum=0; series.forEach(x=>{ cum+=x.gap; x.cum=cum; });
+      const totalProd=series.reduce((s,x)=>s+x.prod,0), totalSales=series.reduce((s,x)=>s+x.sales,0);
+      return {name,series,totalProd,totalSales,cum:series[series.length-1].cum};
+    });
+  }
+  return {YEAR,MONTH_ORDER,RAW,SALES_RAW,items,monthlyTotals,summary,salesItems,salesTotals,flavorCompare};
 })();
 
 /* ---------- core/forecastMonthly.js ---------- */
@@ -3904,19 +3933,20 @@ TVL.views.manufacturing={render(app){
   const mix=Ch.hbar(rows.slice().sort((a,b)=>(selMonth?b.actual-a.actual:b.totalActual-a.totalActual)).map(r=>{ const v=selMonth?r.actual:r.totalActual; return {l:short(r.name),v,r:F.pct(totalActual?v/totalActual:null,1),tip:'<b>'+esc(r.name)+'</b><br>تولید واقعی: '+F.n(v)+'<br>سهم از کل تولید'+(selMonth?' این ماه':'')+': '+F.pct(totalActual?v/totalActual:null)}; }));
 
   /* ===== تولید در برابر فروش — cross-reference with the SALES dataset ===========================
-     Only possible at the whole-تلابار level: production is tracked per flavor/SKU but sales is
-     only ever recorded as one aggregate "تلابار" product (no per-flavor column), so a flavor-level
-     match is not possible with the data on hand — this compares total monthly production against
-     total monthly sales for تلابار, which the sales dataset happens to cover for the exact same
-     ۷ months (فروردین–مهر ۱۴۰۵), a clean like-for-like window. "مازاد/کسری" = تولید − فروش: a
-     persistently positive cumulative value means production has been running ahead of sales
+     Aggregate monthly totals now come from P.salesTotals(), itself built from the representative-
+     channel sales report broken down by flavor (نماینده channel only — not زنجیره‌ای‌ها). That
+     report's monthly totals match the main sales dataset's aggregate تلابار total exactly in 5 of
+     7 months; تیر and مهر differ slightly (a few thousand units — likely a newer cutoff in that
+     report), noted in the panel text rather than silently reconciled. "مازاد/کسری" = تولید − فروش:
+     a persistently positive cumulative value means production has been running ahead of sales
      (stock building up); persistently negative means sales have been drawing down stock faster
      than it's being replaced. Neither is inherently good or bad without knowing opening stock —
-     this only reports the pattern, same descriptive-not-causal stance as the rest of this tab. */
-  const salesByMonth=new Map();
-  (app.ds.records||[]).forEach(r=>{ if(r.product==='تلابار'&&r.year===P.YEAR) salesByMonth.set(r.monthName,(salesByMonth.get(r.monthName)||0)+r.v); });
+     this only reports the pattern, same descriptive-not-causal stance as the rest of this tab.
+     Below this, P.flavorCompare() gives the same comparison per flavor, now that flavor names in
+     the production file and the representative sales-by-flavor file match exactly (verified). */
+  const salesMonthly=P.salesTotals();
   let cum=0;
-  const combined=P.MONTH_ORDER.map(m=>{ const prod=(P.RAW[m]||[]).reduce((s,x)=>s+x[2],0); const sales=salesByMonth.get(m)||0; const gap=prod-sales; cum+=gap; return {m,prod,sales,gap,cum}; });
+  const combined=P.MONTH_ORDER.map(m=>{ const prod=(P.RAW[m]||[]).reduce((s,x)=>s+x[2],0); const sales=(salesMonthly.find(x=>x.m===m)||{v:0}).v; const gap=prod-sales; cum+=gap; return {m,prod,sales,gap,cum}; });
   const cTotalProd=combined.reduce((s,x)=>s+x.prod,0), cTotalSales=combined.reduce((s,x)=>s+x.sales,0);
   const psTrend=Ch.slot(Ch.lines(combined.map(x=>x.m),[{name:'تولید واقعی',vals:combined.map(x=>x.prod),c:1},{name:'فروش',vals:combined.map(x=>x.sales),c:3}],{H:230,title:'تولید در برابر فروش — روند ماهانه (تلابار)',endLabels:true}));
   const gapChart=Ch.hbar(combined.slice().reverse().map(x=>({l:x.m,v:x.gap,r:F.sgnN(x.cum)+' تجمعی',tip:'<b>'+x.m+'</b><br>تولید: '+F.n(x.prod)+'<br>فروش: '+F.n(x.sales)+'<br>مازاد/کسری این ماه: '+F.sgnN(x.gap)+'<br>مازاد/کسری تجمعی تا این ماه: '+F.sgnN(x.cum)})));
@@ -3932,9 +3962,28 @@ TVL.views.manufacturing={render(app){
   const psNarrative='<div class="story"><div class="q"><h3>خلاصه</h3><div class="f">در کل بازه، '+F.n(cTotalProd)+' عدد تولید شده در برابر '+F.n(cTotalSales)+' عدد فروش‌رفته — یعنی '+(finalCum>=0?'مازاد تجمعی '+F.n(finalCum):'کسری تجمعی '+F.n(Math.abs(finalCum)))+' عدد تا پایان '+combined[combined.length-1].m+'.</div>'
     +'<div class="e">بزرگ‌ترین فاصله‌ی تولید و فروش در یک ماه: <b>'+biggestGapM.m+'</b> ('+F.sgnN(biggestGapM.gap)+' — '+(biggestGapM.gap>=0?'تولید بیشتر از فروش':'فروش بیشتر از تولید')+').</div></div></div>';
 
-  const psPanel=H.panel('تولید در برابر فروش (تلابار)','مقایسه فقط در سطح کل تلابار ممکن است، نه هر طعم — چون فروش به تفکیک طعم ثبت نمی‌شود. بازه‌ی فروش دقیقاً همان ۷ ماه تولید (فروردین تا مهر ۱۴۰۵) را پوشش می‌دهد.',psTrend+psNarrative)
+  const psPanel=H.panel('تولید در برابر فروش (تلابار)','جمع ماهانه‌ی فروش تلابار، از گزارش فروش نمایندگان به تفکیک طعم. بازه‌ی فروش دقیقاً همان ۷ ماه تولید (فروردین تا مهر ۱۴۰۵) را پوشش می‌دهد.',psTrend+psNarrative)
     +H.panel('مازاد/کسری ماهانه و تجمعی','ستون‌ها = تولید منهای فروش هر ماه؛ عدد سمت راست = مازاد/کسری تجمعی تا همان ماه. مازاد مثبت یعنی موجودی در حال افزایش، منفی یعنی فروش از تولید همان ماه جلو زده.',gapChart)
     +H.panel('جدول تولید در برابر فروش',null,UI.table('mfgPsTbl',{cols:psCols,rows:combined,pageSize:10,exportName:'talabar-production-vs-sales'}));
+
+  /* ===== per-flavor production-vs-sales, using the representative-channel sales-by-flavor
+     report — now joinable because flavor names in both files match exactly. */
+  const flavorRows=P.flavorCompare().slice().sort((a,b)=>Math.abs(b.cum)-Math.abs(a.cum));
+  const flavorCols=[
+    {key:'n',label:'طعم محصول',cell:r=>esc(short(r.name)),csv:r=>r.name},
+    {key:'p',label:'تولید واقعی (کل)',num:true,sortVal:r=>r.totalProd,cell:r=>F.n(r.totalProd),csv:r=>r.totalProd},
+    {key:'s',label:'فروش (کل)',num:true,sortVal:r=>r.totalSales,cell:r=>F.n(r.totalSales),csv:r=>r.totalSales},
+    {key:'c',label:'مازاد/کسری تجمعی',num:true,sortVal:r=>r.cum,cell:r=>H.chg(r.cum,r.totalSales),csv:r=>r.cum}
+  ];
+  const flavorChart=Ch.hbar(flavorRows.slice().reverse().map(r=>({l:short(r.name),v:r.cum,tip:'<b>'+esc(r.name)+'</b><br>تولید: '+F.n(r.totalProd)+'<br>فروش: '+F.n(r.totalSales)+'<br>مازاد/کسری تجمعی: '+F.sgnN(r.cum)})));
+  const topSurplus=flavorRows.filter(r=>r.cum>0).sort((a,b)=>b.cum-a.cum)[0];
+  const topDeficit=flavorRows.filter(r=>r.cum<0).sort((a,b)=>a.cum-b.cum)[0];
+  const flavorNarrative='<div class="story"><div class="q"><h3>کدام طعم‌ها عقب یا جلو هستند</h3>'
+    +(topSurplus?'<div class="f">بیشترین مازاد انباشته: «'+esc(short(topSurplus.name))+'» ('+F.sgnN(topSurplus.cum)+' عدد) — تولید این طعم به‌طور پیوسته از فروشش جلوتر بوده.</div>':'')
+    +(topDeficit?'<div class="e">بیشترین کسری انباشته: «'+esc(short(topDeficit.name))+'» ('+F.sgnN(topDeficit.cum)+' عدد) — فروش این طعم از تولیدش جلوتر زده.</div>':'')
+    +'</div></div>';
+  const flavorPanel=H.panel('مازاد/کسری تجمعی به تفکیک طعم','از گزارش فروش نمایندگان به تفکیک طعم (فقط کانال نمایندگان، نه زنجیره‌ای‌ها) در برابر تولید همان طعم. جمع ماهانه‌ی این گزارش در ۵ از ۷ ماه دقیقاً با فروش کل تلابار در داده‌ی اصلی یکسان است؛ در تیر و مهر اختلاف کوچکی دیده می‌شود (احتمالاً برش زمانی متفاوت بین دو گزارش).',flavorChart+flavorNarrative)
+    +H.panel('جدول مازاد/کسری به تفکیک طعم',null,UI.table('mfgPsFlavorTbl',{cols:flavorCols,rows:flavorRows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production-vs-sales-by-flavor',sort:['c',-1]}));
 
   /* "تحلیل و یافته‌ها" — a written analysis panel, computed fresh from the same data every
      render (never hardcoded numbers) so it stays correct if the production file is ever
@@ -3970,6 +4019,7 @@ TVL.views.manufacturing={render(app){
     +H.panel('روند ماهانه','خط‌چین = سفارش تولید؛ خط پر = تولید واقعی (همه‌ی طعم‌ها جمع شده).',trend)
     +analysis
     +psPanel
+    +flavorPanel
     +H.panel('سهم هر طعم از کل تولید واقعی'+(selMonth?' ('+selMonth+')':' (۷ ماه)'),'',mix)
     +H.panel('جدول کامل طعم‌ها',null,UI.table('mfgTbl',{cols,rows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production'+(selMonth?'-'+selMonth:''),sort:['o',-1]}));
 },bind(app,root){ root.querySelectorAll('[data-mfgmonth]').forEach(b=>b.onclick=()=>{ app.ui.mfgMonth=b.dataset.mfgmonth==='__all__'?null:b.dataset.mfgmonth; app.render(); }); }};
