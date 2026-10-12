@@ -3903,9 +3903,39 @@ TVL.views.manufacturing={render(app){
 
   const mix=Ch.hbar(rows.slice().sort((a,b)=>(selMonth?b.actual-a.actual:b.totalActual-a.totalActual)).map(r=>{ const v=selMonth?r.actual:r.totalActual; return {l:short(r.name),v,r:F.pct(totalActual?v/totalActual:null,1),tip:'<b>'+esc(r.name)+'</b><br>تولید واقعی: '+F.n(v)+'<br>سهم از کل تولید'+(selMonth?' این ماه':'')+': '+F.pct(totalActual?v/totalActual:null)}; }));
 
+  /* "تحلیل و یافته‌ها" — a written analysis panel, computed fresh from the same data every
+     render (never hardcoded numbers) so it stays correct if the production file is ever
+     updated. Only shown in the 7-month view; a single month has no trend/mix-of-months to
+     narrate. "Reliable" deviation months are detected the same way the earlier نرخ‌تحقق removal
+     was justified — a month only counts if real order≠actual variance exists in it — so this
+     section never resurfaces the same misleading signal under a different name. */
+  let analysis='';
+  if(!selMonth){
+    const q=(t,body)=>'<div class="q"><h3>'+t+'</h3>'+body+'</div>';
+    const growth=mt.map((x,i)=>({m:x.m,actual:x.actual,flavors:(P.RAW[x.m]||[]).length,g:i?(mt[i-1].actual>0?(x.actual-mt[i-1].actual)/mt[i-1].actual:null):null}));
+    const anomalies=growth.filter(r=>r.g!==null&&Math.abs(r.g)>=0.5);
+    const last=growth[growth.length-1];
+    const volBody='<div class="f">تولید واقعی از '+F.n(mt[0].actual)+' در '+mt[0].m+' به '+F.n(last.actual)+' در '+last.m+' رسیده'+(last.g!==null?' ('+F.sgn(last.g)+' نسبت به ماه قبل)':'')+'. روند کلی صعودی با نوسان ماه‌به‌ماه است.</div>'
+      +(anomalies.length?'<div class="e">تغییر غیرعادی (≥۵۰٪ نسبت به ماه قبل): '+anomalies.map(a=>'<b>'+a.m+'</b> ('+F.sgn(a.g)+(a.flavors<P.items().length?'، تعداد طعم تولیدشده هم به '+F.n(a.flavors)+' کاهش یافته':'')+')').join('، ')+' — پیشنهاد می‌شود علت این ماه بررسی شود.</div>':'');
+    const byMix=items.slice().sort((a,b)=>b.totalActual-a.totalActual);
+    const topMix=byMix[0], lowMix=byMix[byMix.length-1];
+    const mixBody='<div class="f">بیشترین سهم تولید: «'+esc(short(topMix.name))+'» ('+F.pct(totalActual?topMix.totalActual/totalActual:null)+')؛ کمترین سهم: «'+esc(short(lowMix.name))+'» ('+F.pct(totalActual?lowMix.totalActual/totalActual:null)+', تولید در '+F.n(lowMix.monthsActive)+' از '+F.n(P.MONTH_ORDER.length)+' ماه).</div>';
+    const reliableMonths=P.MONTH_ORDER.filter(m=>{ const rws=P.RAW[m]||[]; if(!rws.length) return false; return rws.filter(r=>r[1]===r[2]).length/rws.length<0.5; });
+    let devBody;
+    if(reliableMonths.length){
+      const li=reliableMonths.map(m=>{ const rws=(P.RAW[m]||[]).map(([name,o,a])=>({name,d:a-o}));
+        const under=rws.slice().sort((a,b)=>a.d-b.d)[0], over=rws.slice().sort((a,b)=>b.d-a.d)[0];
+        return '<li><b>'+m+'</b>: بیشترین کم‌تولیدی «'+esc(short(under.name))+'» ('+F.sgnN(under.d)+')، بیشترین پرتولیدی «'+esc(short(over.name))+'» ('+F.sgnN(over.d)+')</li>'; }).join('');
+      devBody='<div class="e">فقط در ماه‌هایی که سفارش و تولید واقعی واقعاً با هم فرق داشتند (بقیه‌ی ماه‌ها عملاً سفارش = واقعی بوده و قابل تحلیل نیست):</div><ul>'+li+'</ul>';
+    } else devBody='<div class="e">در هیچ ماهی اختلاف معنادار بین سفارش و تولید واقعی ثبت نشده؛ انحراف از برنامه قابل تحلیل نیست.</div>';
+    analysis=H.panel('تحلیل و یافته‌ها','خلاصه‌ای که همین لحظه از همین داده محاسبه شده؛ با هر به‌روزرسانی داده خودکار تغییر می‌کند.',
+      '<div class="story">'+q('روند حجم تولید',volBody)+q('ترکیب محصول',mixBody)+q('انحراف از برنامه',devBody)+'</div>');
+  }
+
   return H.panel('بازه‌ی گزارش',null,monthCtl)
     +H.panel('خلاصه‌ی دوره','سفارش تولید در برابر تولید واقعی، '+periodLabel+'. منبع: گزارش تولید تلابار (بدون ضایعات). این گزارش فیلتر ماه مخصوص به خودش را دارد (بالا) و با فیلترهای بالای صفحه کار نمی‌کند.',kpis)
     +H.panel('روند ماهانه','خط‌چین = سفارش تولید؛ خط پر = تولید واقعی (همه‌ی طعم‌ها جمع شده).',trend)
+    +analysis
     +H.panel('سهم هر طعم از کل تولید واقعی'+(selMonth?' ('+selMonth+')':' (۷ ماه)'),'',mix)
     +H.panel('جدول کامل طعم‌ها',null,UI.table('mfgTbl',{cols,rows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production'+(selMonth?'-'+selMonth:''),sort:['o',-1]}));
 },bind(app,root){ root.querySelectorAll('[data-mfgmonth]').forEach(b=>b.onclick=()=>{ app.ui.mfgMonth=b.dataset.mfgmonth==='__all__'?null:b.dataset.mfgmonth; app.render(); }); }};
