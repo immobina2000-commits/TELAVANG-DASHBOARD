@@ -3959,7 +3959,8 @@ TVL.views.manufacturing={render(app){
   ];
   const biggestGapM=combined.slice().sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap))[0];
   const finalCum=combined[combined.length-1].cum;
-  const psNarrative='<div class="story"><div class="q"><h3>خلاصه</h3><div class="f">در کل بازه، '+F.n(cTotalProd)+' عدد تولید شده در برابر '+F.n(cTotalSales)+' عدد فروش‌رفته — یعنی '+(finalCum>=0?'مازاد تجمعی '+F.n(finalCum):'کسری تجمعی '+F.n(Math.abs(finalCum)))+' عدد تا پایان '+combined[combined.length-1].m+'.</div>'
+  const cRepShare=cTotalProd?cTotalSales/cTotalProd:null;
+  const psNarrative='<div class="story"><div class="q"><h3>خلاصه</h3><div class="f">در کل بازه، '+F.n(cTotalProd)+' عدد تولید شده در برابر '+F.n(cTotalSales)+' عدد فروش‌رفته — یعنی '+(finalCum>=0?'مازاد تجمعی '+F.n(finalCum):'کسری تجمعی '+F.n(Math.abs(finalCum)))+' عدد تا پایان '+combined[combined.length-1].m+'. نمایندگان در کل '+F.pct(cRepShare)+' از تولید کل تلابار را فروخته‌اند (بقیه، سهم سایر کانال‌ها مثل زنجیره‌ای‌ها یا موجودی انبار است).</div>'
     +'<div class="e">بزرگ‌ترین فاصله‌ی تولید و فروش در یک ماه: <b>'+biggestGapM.m+'</b> ('+F.sgnN(biggestGapM.gap)+' — '+(biggestGapM.gap>=0?'تولید بیشتر از فروش':'فروش بیشتر از تولید')+').</div></div></div>';
 
   const psPanel=H.panel('تولید در برابر فروش (تلابار)','جمع ماهانه‌ی فروش تلابار، از گزارش فروش نمایندگان به تفکیک طعم. بازه‌ی فروش دقیقاً همان ۷ ماه تولید (فروردین تا مهر ۱۴۰۵) را پوشش می‌دهد.',psTrend+psNarrative)
@@ -3967,22 +3968,31 @@ TVL.views.manufacturing={render(app){
     +H.panel('جدول تولید در برابر فروش',null,UI.table('mfgPsTbl',{cols:psCols,rows:combined,pageSize:10,exportName:'talabar-production-vs-sales'}));
 
   /* ===== per-flavor production-vs-sales, using the representative-channel sales-by-flavor
-     report — now joinable because flavor names in both files match exactly. */
-  const flavorRows=P.flavorCompare().slice().sort((a,b)=>Math.abs(b.cum)-Math.abs(a.cum));
+     report — now joinable because flavor names in both files match exactly. "سهم نمایندگان از
+     تولید" = totalSales/totalProd per flavor: what share of that flavor's production has gone out
+     through the نمایندگان channel specifically (not a sell-through rate against opening stock —
+     just production vs. this one channel's sales, same descriptive framing as the rest of the tab). */
+  const flavorRows=P.flavorCompare().map(r=>Object.assign({},r,{sharePct:r.totalProd?r.totalSales/r.totalProd:null})).sort((a,b)=>Math.abs(b.cum)-Math.abs(a.cum));
   const flavorCols=[
     {key:'n',label:'طعم محصول',cell:r=>esc(short(r.name)),csv:r=>r.name},
     {key:'p',label:'تولید واقعی (کل)',num:true,sortVal:r=>r.totalProd,cell:r=>F.n(r.totalProd),csv:r=>r.totalProd},
-    {key:'s',label:'فروش (کل)',num:true,sortVal:r=>r.totalSales,cell:r=>F.n(r.totalSales),csv:r=>r.totalSales},
+    {key:'s',label:'فروش نمایندگان (کل)',num:true,sortVal:r=>r.totalSales,cell:r=>F.n(r.totalSales),csv:r=>r.totalSales},
+    {key:'sh',label:'سهم نمایندگان از تولید',num:true,sortVal:r=>r.sharePct,cell:r=>F.pct(r.sharePct),csv:r=>r.sharePct},
     {key:'c',label:'مازاد/کسری تجمعی',num:true,sortVal:r=>r.cum,cell:r=>H.chg(r.cum,r.totalSales),csv:r=>r.cum}
   ];
-  const flavorChart=Ch.hbar(flavorRows.slice().reverse().map(r=>({l:short(r.name),v:r.cum,tip:'<b>'+esc(r.name)+'</b><br>تولید: '+F.n(r.totalProd)+'<br>فروش: '+F.n(r.totalSales)+'<br>مازاد/کسری تجمعی: '+F.sgnN(r.cum)})));
+  const flavorChart=Ch.hbar(flavorRows.slice().reverse().map(r=>({l:short(r.name),v:r.cum,tip:'<b>'+esc(r.name)+'</b><br>تولید: '+F.n(r.totalProd)+'<br>فروش نمایندگان: '+F.n(r.totalSales)+'<br>سهم نمایندگان از تولید: '+F.pct(r.sharePct)+'<br>مازاد/کسری تجمعی: '+F.sgnN(r.cum)})));
+  const shareRanked=flavorRows.filter(r=>r.sharePct!==null).slice().sort((a,b)=>b.sharePct-a.sharePct);
+  const shareChart=Ch.hbar(shareRanked.slice().reverse().map(r=>({l:short(r.name),v:r.sharePct,r:F.pct(r.sharePct),tip:'<b>'+esc(r.name)+'</b><br>تولید: '+F.n(r.totalProd)+'<br>فروش نمایندگان: '+F.n(r.totalSales)+'<br>سهم نمایندگان از تولید: '+F.pct(r.sharePct)})));
   const topSurplus=flavorRows.filter(r=>r.cum>0).sort((a,b)=>b.cum-a.cum)[0];
   const topDeficit=flavorRows.filter(r=>r.cum<0).sort((a,b)=>a.cum-b.cum)[0];
+  const topShare=shareRanked[0], lowShare=shareRanked[shareRanked.length-1];
   const flavorNarrative='<div class="story"><div class="q"><h3>کدام طعم‌ها عقب یا جلو هستند</h3>'
     +(topSurplus?'<div class="f">بیشترین مازاد انباشته: «'+esc(short(topSurplus.name))+'» ('+F.sgnN(topSurplus.cum)+' عدد) — تولید این طعم به‌طور پیوسته از فروشش جلوتر بوده.</div>':'')
     +(topDeficit?'<div class="e">بیشترین کسری انباشته: «'+esc(short(topDeficit.name))+'» ('+F.sgnN(topDeficit.cum)+' عدد) — فروش این طعم از تولیدش جلوتر زده.</div>':'')
+    +(topShare&&lowShare&&topShare!==lowShare?'<div class="e">بیشترین سهم نمایندگان از تولید: «'+esc(short(topShare.name))+'» ('+F.pct(topShare.sharePct)+')؛ کمترین: «'+esc(short(lowShare.name))+'» ('+F.pct(lowShare.sharePct)+') — یعنی بخش بزرگ‌تری از تولید این طعم از کانال‌های دیگر یا موجودی انبار عبور کرده.</div>':'')
     +'</div></div>';
   const flavorPanel=H.panel('مازاد/کسری تجمعی به تفکیک طعم','از گزارش فروش نمایندگان به تفکیک طعم (فقط کانال نمایندگان، نه زنجیره‌ای‌ها) در برابر تولید همان طعم. جمع ماهانه‌ی این گزارش در ۵ از ۷ ماه دقیقاً با فروش کل تلابار در داده‌ی اصلی یکسان است؛ در تیر و مهر اختلاف کوچکی دیده می‌شود (احتمالاً برش زمانی متفاوت بین دو گزارش).',flavorChart+flavorNarrative)
+    +H.panel('سهم نمایندگان از تولید هر طعم','فروش نمایندگان تقسیم بر تولید واقعی همان طعم، در کل بازه‌ی ۷ ماه. عدد پایین‌تر لزوماً بد نیست — ممکن است آن طعم بیشتر از کانال‌های دیگر (زنجیره‌ای‌ها) فروخته شود یا هنوز در انبار مانده باشد؛ این نمودار فقط سهم مشخص کانال نمایندگان را نشان می‌دهد.',shareChart)
     +H.panel('جدول مازاد/کسری به تفکیک طعم',null,UI.table('mfgPsFlavorTbl',{cols:flavorCols,rows:flavorRows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production-vs-sales-by-flavor',sort:['c',-1]}));
 
   /* "تحلیل و یافته‌ها" — a written analysis panel, computed fresh from the same data every
