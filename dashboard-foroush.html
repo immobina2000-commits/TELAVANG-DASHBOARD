@@ -1878,6 +1878,47 @@ TVL.historical = (function(){
   return {records, hasHistory, isWholeNetwork, yearRange};
 })();
 
+
+/* ---------- core/production.js ---------- */
+/* ===== core/production.js — manufacturing order-vs-actual (تلابار), separate from the sales
+   dataset: a small flat snapshot (item x month -> order, actual), not a per-day record stream,
+   so it is kept outside the main ingest pipeline and rendered by its own view/tab. ===== */
+TVL.production = (function(){
+  const F = TVL.fmt;
+  const YEAR = 1405;
+  const MONTH_ORDER = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر'];
+  /* item -> [order, actual] per month, from the production-order report (ضایعات intentionally
+     excluded — not asked for). */
+  const RAW = {
+    'فروردین':[['پروتئین بار بادام زمینی برند تلابار',14000,13543],['پروتئین بار طعم بیسکوئیت برند تلابار',14000,13498],['پروتئین بار طعم پسته برند تلابار',23561,23423],['پروتئین بار طعم سیب سبز ماچا برند تلابار',14000,14028],['پروتئین بار طعم شکلات فندوقی برند تلابار',15102,14576],['پروتئین بار طعم قهوه برند تلابار',26900,27961],['پروتئین بار طعم موز چیا برند تلابار',14000,13572],['پروتئین بار طعم میکس بری چیا برند تلابار',10000,10401],['پروتئین بار طعم نارگیلی برند تلابار',17000,17600]],
+    'اردیبهشت':[['پروتئین بار بادام زمینی برند تلابار',25810,27693],['پروتئین بار طعم بیسکوئیت برند تلابار',25285,27386],['پروتئین بار طعم پسته برند تلابار',23000,23144],['پروتئین بار طعم سیب سبز ماچا برند تلابار',6000,6696],['پروتئین بار طعم شکلات فندوقی برند تلابار',44700,47265],['پروتئین بار طعم قهوه برند تلابار',12000,13850],['پروتئین بار طعم موز چیا برند تلابار',18550,20682],['پروتئین بار طعم میکس بری چیا برند تلابار',31920,34722],['پروتئین بار طعم نارگیلی برند تلابار',12010,14204]],
+    'خرداد':[['پروتئین بار بادام زمینی برند تلابار',47519,47519],['پروتئین بار طعم بیسکوئیت برند تلابار',39765,39765],['پروتئین بار طعم پسته برند تلابار',45140,47203],['پروتئین بار طعم سیب سبز ماچا برند تلابار',20048,20048],['پروتئین بار طعم شکلات فندوقی برند تلابار',57634,57819],['پروتئین بار طعم قهوه برند تلابار',19704,19704],['پروتئین بار طعم موز چیا برند تلابار',16527,16527],['پروتئین بار طعم میکس بری چیا برند تلابار',19545,19545],['پروتئین بار طعم نارگیلی برند تلابار',20328,20328]],
+    'تیر':[['پروتئین بار طعم پسته برند تلابار',12742,12742],['پروتئین بار طعم شکلات فندوقی برند تلابار',17045,17045],['پروتئین بار طعم قهوه برند تلابار',13306,13306],['پروتئین بار طعم موز چیا برند تلابار',27504,27504],['پروتئین بار طعم میکس بری چیا برند تلابار',13032,13032],['پروتئین بار طعم نارگیلی برند تلابار',26745,26745]],
+    'مرداد':[['پروتئین بار بادام زمینی برند تلابار',23408,23396],['پروتئین بار طعم بیسکوئیت برند تلابار',34708,34708],['پروتئین بار طعم پسته برند تلابار',42752,42752],['پروتئین بار طعم شکلات فندوقی برند تلابار',67999,67999],['پروتئین بار طعم قهوه برند تلابار',29087,29087],['پروتئین بار طعم موز چیا برند تلابار',16480,16480],['پروتئین بار طعم میکس بری چیا برند تلابار',26202,26202],['پروتئین بار طعم نارگیلی برند تلابار',33075,33075]],
+    'شهریور':[['پروتئین بار بادام زمینی برند تلابار',56788,56788],['پروتئین بار طعم بیسکوئیت برند تلابار',71162,71162],['پروتئین بار طعم پسته برند تلابار',45990,45990],['پروتئین بار طعم سیب سبز ماچا برند تلابار',42845,42845],['پروتئین بار طعم شکلات فندوقی برند تلابار',72718,72718],['پروتئین بار طعم قهوه برند تلابار',44163,44163],['پروتئین بار طعم موز چیا برند تلابار',66072,66072],['پروتئین بار طعم میکس بری چیا برند تلابار',43667,43667],['پروتئین بار طعم نارگیلی برند تلابار',47824,47824]],
+    'مهر':[['پروتئین بار بادام زمینی برند تلابار',26856,26856],['پروتئین بار طعم بیسکوئیت برند تلابار',26640,26640],['پروتئین بار طعم پسته برند تلابار',71545,71545],['پروتئین بار طعم شکلات فندوقی برند تلابار',27048,27048],['پروتئین بار طعم قهوه برند تلابار',54440,54440],['پروتئین بار طعم موز چیا برند تلابار',43227,43227],['پروتئین بار طعم میکس بری چیا برند تلابار',13494,13494],['پروتئین بار طعم نارگیلی برند تلابار',43587,43587]]
+  };
+  function items(){ const s=new Set(); MONTH_ORDER.forEach(m=>(RAW[m]||[]).forEach(r=>s.add(r[0]))); return [...s]; }
+  function monthlyTotals(){
+    return MONTH_ORDER.map(m=>{ const rows=RAW[m]||[]; const order=rows.reduce((s,r)=>s+r[1],0), actual=rows.reduce((s,r)=>s+r[2],0);
+      return {m,order,actual,rate:order>0?actual/order:null}; });
+  }
+  function summary(){
+    return items().map(name=>{
+      const series=MONTH_ORDER.map(m=>{ const row=(RAW[m]||[]).find(r=>r[0]===name); return row?{m,order:row[1],actual:row[2],rate:row[1]>0?row[2]/row[1]:null}:null; });
+      const present=series.filter(Boolean);
+      const totalOrder=present.reduce((s,x)=>s+x.order,0), totalActual=present.reduce((s,x)=>s+x.actual,0);
+      const rate=totalOrder>0?totalActual/totalOrder:null;
+      const rates=present.filter(x=>x.rate!==null).map(x=>x.rate);
+      const avgRate=rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:null;
+      const sd=(rates.length>1&&avgRate!==null)?Math.sqrt(rates.reduce((s,x)=>s+Math.pow(x-avgRate,2),0)/rates.length):null;
+      const cv=(sd!==null&&avgRate)?sd/avgRate:null;
+      return {name,series,totalOrder,totalActual,rate,avgRate,cv,monthsActive:present.length};
+    });
+  }
+  return {YEAR,MONTH_ORDER,RAW,items,monthlyTotals,summary};
+})();
+
 /* ---------- core/forecastMonthly.js ---------- */
 /* =====================================================================================
    core/forecastMonthly.js — NEXT CALENDAR MONTH forecast, per representative × per product
@@ -3806,12 +3847,64 @@ TVL.views.forecast={render(app){
   const rfN=root.querySelector('#fmRefresh'); if(rfN) rfN.onclick=()=>{ TVL.forecastMonthly.clearCache(); app.render(); TVL.ui.toast('پیش‌بینی ماه آینده به‌روزرسانی شد.'); };
 }};
 
+/* ---------- views/manufacturing.js ---------- */
+/* ===== views/manufacturing.js — تلابار production-order vs actual, ۷ ماه (فروردین–مهر ۱۴۰۵).
+   Independent of the sales filters/period bar: this is a fixed snapshot report, not a
+   record stream, so it renders the same regardless of the global product/date filters. ===== */
+TVL.views.manufacturing={render(app){
+  const F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,esc=F.esc,P=TVL.production;
+  const mt=P.monthlyTotals();
+  const totalOrder=mt.reduce((s,m)=>s+m.order,0), totalActual=mt.reduce((s,m)=>s+m.actual,0);
+  const overallRate=totalOrder>0?totalActual/totalOrder:null;
+  const items=P.summary();
+  /* Ranking by raw rate (lowest vs highest) silently assumes "lowest = under-production = bad" —
+     wrong whenever a line only ever over-produces (as تلابار does here: every month is ≥100%),
+     where "lowest" just means "closest to plan" and is actually the best outcome, not a problem.
+     Schedule adherence is a two-sided metric: rank by distance from 100% either direction, so
+     "needs review" always means a real deviation, over or under. */
+  const byDeviation=items.filter(i=>i.avgRate!==null).slice().sort((a,b)=>Math.abs(a.avgRate-1)-Math.abs(b.avgRate-1));
+  const closest=byDeviation.slice(0,3), furthest=byDeviation.slice(-3).reverse();
+  const mostVolatile=items.filter(i=>i.cv!==null).slice().sort((a,b)=>b.cv-a.cv).slice(0,3);
+
+  const kpis='<div class="kpis">'
+    +TVL.kpi.card({label:'نرخ تحقق برنامه‌ی تولید (کل ۷ ماه)',raw:overallRate!==null?F.pct(overallRate):'—',note:'مجموع تولید واقعی ÷ مجموع سفارش تولید، در همه‌ی طعم‌ها و ماه‌ها'})
+    +TVL.kpi.card({label:'سفارش تولید کل',value:totalOrder,unit:'عدد'})
+    +TVL.kpi.card({label:'تولید واقعی کل',value:totalActual,unit:'عدد'})
+    +TVL.kpi.card({label:'انحراف کل',raw:F.sgnN(totalActual-totalOrder),extra:'تولید واقعی − سفارش تولید'})
+    +TVL.kpi.card({label:'تعداد طعم محصول',value:items.length})
+    +'</div>';
+
+  const trend=Ch.slot(Ch.bar(mt.map(x=>({l:x.m,v:x.rate!==null?Math.round(x.rate*1000)/10:0,cls:x.rate!==null&&x.rate<1?'mut':'',tip:'<b>'+x.m+'</b><br>سفارش: '+F.n(x.order)+'<br>واقعی: '+F.n(x.actual)+'<br>نرخ تحقق: '+(x.rate!==null?F.pct(x.rate):'—')})),{H:220,title:'نرخ تحقق برنامه‌ی تولید — روند ماهانه',valueLabels:true}));
+
+  const mix=Ch.hbar(items.slice().sort((a,b)=>b.totalActual-a.totalActual).map(i=>({l:i.name.replace('پروتئین بار ','').replace(' برند تلابار',''),v:i.totalActual,r:F.pct(totalActual?i.totalActual/totalActual:null,1),tip:'<b>'+esc(i.name)+'</b><br>تولید واقعی (۷ ماه): '+F.n(i.totalActual)+'<br>سهم از کل تولید: '+F.pct(totalActual?i.totalActual/totalActual:null)})));
+
+  const rankCard=(title,list,noteGood)=>H.panel(title,'',list.length?'<div class="kpis">'+list.map(i=>'<div class="kpi"><div class="l">'+esc(i.name.replace('پروتئین بار ','').replace(' برند تلابار',''))+'</div><div class="v">'+F.pct(i.avgRate)+'</div><div class="s">'+F.n(i.monthsActive)+' ماه فعال'+(noteGood?'':' · میانگین نرخ تحقق')+'</div></div>').join('')+'</div>':'<div class="empty">داده‌ای نیست.</div>');
+
+  const cols=[
+    {key:'n',label:'طعم محصول',cell:r=>esc(r.name.replace('پروتئین بار ','').replace(' برند تلابار','')),csv:r=>r.name},
+    {key:'o',label:'سفارش تولید (کل)',num:true,sortVal:r=>r.totalOrder,cell:r=>F.n(r.totalOrder),csv:r=>r.totalOrder},
+    {key:'a',label:'تولید واقعی (کل)',num:true,sortVal:r=>r.totalActual,cell:r=>F.n(r.totalActual),csv:r=>r.totalActual},
+    {key:'d',label:'انحراف',num:true,sortVal:r=>r.totalActual-r.totalOrder,cell:r=>H.chg(r.totalActual-r.totalOrder,r.totalOrder),csv:r=>r.totalActual-r.totalOrder},
+    {key:'r',label:'نرخ تحقق (کل دوره)',num:true,sortVal:r=>r.rate===null?-1:r.rate,cell:r=>r.rate===null?'<span class="flat">—</span>':F.pct(r.rate),csv:r=>r.rate},
+    {key:'avg',label:'میانگین نرخ تحقق ماهانه',num:true,sortVal:r=>r.avgRate===null?-1:r.avgRate,cell:r=>r.avgRate===null?'<span class="flat">—</span>':F.pct(r.avgRate),csv:r=>r.avgRate},
+    {key:'cv',label:'ثبات (پراکندگی نرخ تحقق)',num:true,sortVal:r=>r.cv===null?-1:r.cv,cell:r=>r.cv===null?'<span class="flat">—</span>':UI.badge(r.cv<0.05?'pos':(r.cv<0.15?'sugg':'high'),F.pct(r.cv,1)),csv:r=>r.cv},
+    {key:'m',label:'ماه فعال',num:true,sortVal:r=>r.monthsActive,cell:r=>F.n(r.monthsActive)+' از '+F.n(P.MONTH_ORDER.length),csv:r=>r.monthsActive}
+  ];
+
+  return H.panel('خلاصه‌ی دوره','سفارش تولید در برابر تولید واقعی، '+P.MONTH_ORDER[0]+' تا '+P.MONTH_ORDER[P.MONTH_ORDER.length-1]+' '+F.n(P.YEAR)+'. منبع: گزارش تولید تلابار (بدون ضایعات). این گزارش مستقل از فیلترهای بالای صفحه است.',kpis)
+    +H.panel('روند ماهانه‌ی نرخ تحقق','ستون‌ها = تولید واقعی ÷ سفارش تولید در هر ماه (همه‌ی طعم‌ها جمع شده). زیر ۱۰۰٪ = کم‌تولیدی نسبت به برنامه، بالای ۱۰۰٪ = پرتولیدی.',trend)
+    +'<div class="grid2">'+rankCard('نزدیک‌ترین به برنامه',closest,false)+rankCard('بیشترین انحراف از برنامه (نیازمند بررسی)',furthest,false)+'</div>'
+    +rankCard('بی‌ثبات‌ترین طعم‌ها (بیشترین نوسان نرخ تحقق ماه‌به‌ماه)',mostVolatile,false)
+    +H.panel('سهم هر طعم از کل تولید واقعی (۷ ماه)','',mix)
+    +H.panel('جدول کامل طعم‌ها','«ثبات» = ضریب تغییرات (انحراف معیار ÷ میانگین) نرخ تحقق ماهانه؛ سبز = پایدار، زرد = نوسان متوسط، قرمز = نوسان زیاد.',UI.table('mfgTbl',{cols,rows:items,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production',sort:['o',-1]}));
+}};
+
 /* ---------- app.js ---------- */
 /* ===== app.js — bootstrap, state, render loop, tabs, theme, persistence (Phase 40, 41, 52, 54) ===== */
 TVL.app = (function(){
   const F=TVL.fmt, UI=TVL.ui, Fi=TVL.filters, esc=F.esc, C=TVL.config;
   const app={ds:null,st:null,mt:null,alerts:[],tab:'ov',ui:{openMs:null,msSearch:'',theme:null,analystTab:'dq'}};
-  const NAV=[['ov','نمای کلی','overview'],['fc','پیش‌بینی','forecast'],['tr','روند فروش','trend'],['rp','نمایندگان','reps'],['wd','الگوی روز فروش','wd'],['bd','روز پیشنهادی خرید','buyday'],['geo','جغرافیا','geo'],['pop','سهم هر نماینده در استان','pop'],['prod','محصولات','prod'],['cust','مشتریان','cust'],['al','هشدارها و فرصت‌ها','al'],['dt','داده‌ی جزئی','raw']];
+  const NAV=[['ov','نمای کلی','overview'],['fc','پیش‌بینی','forecast'],['tr','روند فروش','trend'],['rp','نمایندگان','reps'],['wd','الگوی روز فروش','wd'],['bd','روز پیشنهادی خرید','buyday'],['geo','جغرافیا','geo'],['pop','سهم هر نماینده در استان','pop'],['prod','محصولات','prod'],['mfg','تولید تلابار','manufacturing'],['cust','مشتریان','cust'],['al','هشدارها و فرصت‌ها','al'],['dt','داده‌ی جزئی','raw']];
   const $=id=>document.getElementById(id);
 
   function bundledBytes(){ const el=$('bundled-xlsx'); if(!el) return null; const bin=atob(el.textContent.trim()); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
