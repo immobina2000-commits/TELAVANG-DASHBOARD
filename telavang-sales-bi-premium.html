@@ -3259,7 +3259,7 @@ TVL.vh = (function(){
      small strip in the hero banner — تلابار shows all 9 flavors side by side, تخم مرغ تبدیلی
      all 3, تخم ماکیان both. */
   const PRODUCT_THUMBS={
-    'تخم‌مرغ':['assets/products/egg-classic-9.webp'],
+    'تخم‌مرغ':['assets/products/egg-classic-6.webp','assets/products/egg-classic-9.webp','assets/products/egg-classic-15.webp','assets/products/egg-classic-20.webp'],
     'تلابار':['assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-biscuit.webp','assets/products/talabar-peste.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-nargil.webp'],
     'تخم مرغ تبدیلی':['assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp'],
     'تخم ماکیان':['assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp']
@@ -3294,7 +3294,7 @@ TVL.views.overview={render(app){
   const DIMS=[['rep','نماینده'],['province','استان'],['city','شهر'],['customer','مشتری'],['channel','کانال']];
   /* Hero collage — real product photos only (see assets/SOURCES.md), purely a visual banner;
      no numbers come from or are affected by it. */
-  const heroImgs=['assets/products/egg-classic-9.webp','assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp'];
+  const heroImgs=['assets/products/egg-classic-6.webp','assets/products/egg-classic-9.webp','assets/products/egg-classic-15.webp','assets/products/egg-classic-20.webp','assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp'];
   const hero='<div class="ov-hero"><div class="ov-hero-txt"><h2>هوش فروش محصولات تِلاونگ</h2><p>'+esc(mt.period.label)+'</p></div><div class="ov-hero-imgs">'+heroImgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div></div>';
   let head=hero+H.periodNote(mt);
   return head+H.blocks(mt,(pm,p)=>{
@@ -3631,7 +3631,7 @@ TVL.views.prod={render(app){
      (see assets/SOURCES.md for provenance of every file). Purely illustrative; no sales
      numbers are derived from or shown inside these cards. */
   const GALLERY=[
-    {group:'تخم‌مرغ',items:[['assets/products/egg-classic-9.webp','تخم مرغ کلاسیک ۹ عددی']]},
+    {group:'تخم‌مرغ — بسته‌بندی‌های مختلف',items:[['assets/products/egg-classic-6.webp','کلاسیک ۶ عددی'],['assets/products/egg-classic-9.webp','کلاسیک ۹ عددی'],['assets/products/egg-classic-15.webp','کلاسیک ۱۵ عددی'],['assets/products/egg-classic-20.webp','کلاسیک ۲۰ عددی']]},
     {group:'تلابار — ۹ طعم',items:[
       ['assets/products/talabar-badam-zamini.webp','بادام زمینی'],['assets/products/talabar-biscuit.webp','بیسکوئیت'],['assets/products/talabar-peste.webp','پسته'],['assets/products/talabar-sib-macha.webp','سیب سبز ماچا'],
       ['assets/products/talabar-shokolat-fandoghi.webp','شکلات فندوقی'],['assets/products/talabar-ghahve.webp','قهوه'],['assets/products/talabar-moz-chia.webp','موز چیا'],['assets/products/talabar-mix-bari-chia.webp','میکس بری چیا'],['assets/products/talabar-nargil.webp','نارگیلی']

@@ -25,14 +25,15 @@ cropped (packaging only, UI chrome removed) and compressed copy of one `raw/` sc
 | tabdili-telara.webp | تلارا (سفیده پاستوریزه بطری) | assets/tabdili/raw/telara-lineup.png | Official |
 | makian-kabk.webp | تخم کبک | assets/makian/raw/kabk-baldarchin.png | Official |
 | makian-baldarchin.webp | تخم بلدرچین | assets/makian/raw/baldarchin.png | Official |
+| egg-classic-6.webp | تخم مرغ کلاسیک ۶ عددی | assets/egg/raw/grid-20-15-9-6.png | Official |
 | egg-classic-9.webp | تخم مرغ کلاسیک ۹ عددی | assets/egg/raw/classic-9.png | Official |
+| egg-classic-15.webp | تخم مرغ کلاسیک ۱۵ عددی | assets/egg/raw/grid-20-15-9-6.png | Official |
+| egg-classic-20.webp | تخم مرغ کلاسیک ۲۰ عددی | assets/egg/raw/grid-20-15-9-6.png | Official |
 
 ## Not available / could not be verified
 
-- Telavang sells eggs in several pack sizes (6/9/12/15-count etc.); only the ۹ عددی classic
-  pack photo above was supplied and embedded so far — it stands in as the general تخم‌مرغ
-  product image everywhere in the dashboard (filter thumbnail, gallery, hero collage, login
-  shelf), not a claim about which specific pack size a given sale refers to.
+- Telavang sells these pack sizes in other product lines too (e.g. quail/بلدرچین packs,
+  other تخم ماکیان variants) that were not supplied and are not embedded.
 - **Factory, production line, packaging-line, or distribution photography**: none were
   available (no network access to browse telavang.com's media/gallery pages, and none were
   supplied by the user). The dashboard's login-screen illustration and the product filter
