@@ -261,64 +261,36 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
 
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} html{scroll-padding-top:env(safe-area-inset-top,0px)}
 
-/* ===== film.css — "از تولید تا بازار" intro film (Canvas2D + CSS + SVG, no external libs)
-   Bright/light theme (matches the dashboard's own light palette), short (~31s), and every
-   scene has obvious continuous motion — not just a crossfade between static cards. ===== */
-#filmOverlay{position:fixed;inset:0;z-index:9997;background:linear-gradient(160deg,#fff8ee,#ffe9cc 55%,#ffd9a8);overflow:hidden;direction:rtl}
-#filmCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.film-skip{position:absolute;top:18px;inset-inline-end:18px;z-index:5;background:#fff;color:#7a4b12;border:1px solid #f0c48a;border-radius:999px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(180,100,20,.18)}
+/* ===== film.css — brand splash (~4s), modern app-launch pattern: logo pop + glow burst +
+   progress sliver, then a quick portal-style exit into the dashboard. Bright warm theme
+   matching the dashboard's own light palette. ===== */
+#filmOverlay{position:fixed;inset:0;z-index:9997;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(900px 700px at 50% 45%,#fff8ee,#ffe3b8 70%,#ffd194);overflow:hidden;direction:rtl;
+  animation:filmBgIn .5s ease both}
+#filmOverlay.film-exit{animation:filmOut .5s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes filmBgIn{from{opacity:0}to{opacity:1}}
+@keyframes filmOut{to{opacity:0;transform:scale(1.14)}}
+.film-skip{position:absolute;top:18px;inset-inline-end:18px;z-index:5;background:#fff;color:#7a4b12;border:1px solid #f0c48a;border-radius:999px;padding:7px 15px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(180,100,20,.18)}
 .film-skip:hover{background:#fff6e9}
-.film-scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;pointer-events:none;
-  transform:scale(.88) translateY(16px);transition:opacity .55s ease,transform .55s cubic-bezier(.2,.8,.3,1.3);padding:24px;text-align:center}
-.film-scene.on{opacity:1;transform:scale(1) translateY(0)}
-.film-egg{width:1px;height:1px}
-.film-logo{height:58px;width:auto;filter:drop-shadow(0 8px 18px rgba(239,125,31,.35));animation:filmBreathe 2.2s ease-in-out infinite}
-.film-logo.sm{height:50px}
-@keyframes filmBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
-.film-logo-txt{font-size:36px;font-weight:900;color:#ef7d1f;animation:filmBreathe 2.2s ease-in-out infinite}
-.film-logo-txt.sm{font-size:28px}
-.film-sub{color:#a85d16;font-size:14px;font-weight:700;letter-spacing:.02em}
-.film-scene-title{color:#2c1c0c;font-size:23px;font-weight:900}
-.film-scene-sub{color:#8a6a3f;font-size:12.5px;max-width:420px;font-weight:600}
-/* scene 3 — product showcase: fast, obvious slide+spin+bounce cycle */
-.film-showcase{position:relative;width:min(80vw,460px);height:200px}
-.film-showcase img{position:absolute;inset:0;margin:auto;max-height:180px;max-width:150px;object-fit:contain;background:#fff;border-radius:16px;padding:12px;
-  opacity:0;transform:translateX(70px) rotate(14deg) scale(.7);box-shadow:0 18px 40px rgba(180,100,20,.28);
-  animation:filmShowcase 6s cubic-bezier(.3,.9,.3,1.2) infinite;animation-delay:calc(var(--i) * -1.5s)}
-@keyframes filmShowcase{
-  0%{opacity:0;transform:translateX(90px) rotate(18deg) scale(.6)}
-  10%{opacity:1;transform:translateX(0) rotate(0deg) scale(1.08)}
-  20%{opacity:1;transform:translateX(0) rotate(-3deg) scale(1)}
-  32%{opacity:1;transform:translateX(0) rotate(2deg) scale(1.02)}
-  42%{opacity:0;transform:translateX(-90px) rotate(-18deg) scale(.6)}
-  100%{opacity:0}
-}
-/* scene 4 — map: bright card, visible pulsing nodes + moving package dots */
-.film-map{width:min(72vw,420px);height:auto;filter:drop-shadow(0 12px 26px rgba(180,100,20,.22))}
-.film-iran{fill:#fff3e0;stroke:#ef7d1f;stroke-width:2}
-.film-node{fill:#e8caa0}
-.film-node.on{fill:#ef7d1f;filter:drop-shadow(0 0 6px rgba(239,125,31,.8));animation:filmNodePulse 1.1s ease-in-out infinite}
-.film-node.on:nth-child(3n){animation-delay:.2s} .film-node.on:nth-child(4n){animation-delay:.4s} .film-node.on:nth-child(5n){animation-delay:.6s}
-@keyframes filmNodePulse{0%,100%{opacity:.8;r:3.6}50%{opacity:1;r:5.2}}
-.film-route{stroke:#f0a85c;stroke-width:1;stroke-dasharray:4 4;animation:filmDash 1s linear infinite}
-@keyframes filmDash{to{stroke-dashoffset:-16}}
-.film-pkg{fill:#c2590b}
-/* scene 5 — KPIs + bars, bright */
-.film-kpis{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
-.film-kpi{display:flex;flex-direction:column;align-items:center;gap:4px}
-.film-kpi b{color:#c2590b;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}
-.film-kpi span{color:#8a6a3f;font-size:11.5px;font-weight:700}
-.film-bars{width:min(80vw,460px);display:flex;flex-direction:column;gap:9px}
-.film-bar-row{display:flex;align-items:center;gap:10px;opacity:0;animation:filmFadeIn .5s ease forwards}
-@keyframes filmFadeIn{to{opacity:1}}
-.film-bar-lbl{color:#5a4326;font-size:11.5px;font-weight:700;width:110px;flex:none;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.film-bar-track{flex:1;height:9px;border-radius:999px;background:#f3e2c8;overflow:hidden}
-.film-bar-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#ffb15c,#ef7d1f);animation:filmBarGrow .9s ease .15s forwards}
-@keyframes filmBarGrow{to{width:var(--w)}}
-.film-tagline{color:#2c1c0c;font-size:18px;font-weight:800;max-width:420px}
-.film-enter{margin-top:6px}
-@media (max-width:640px){ .film-scene-title{font-size:19px} .film-logo{height:46px} .film-kpis{gap:18px} .film-kpi b{font-size:23px} }
-@media (prefers-reduced-motion:reduce){ .film-showcase img,.film-node.on,.film-route,.film-bar-fill,.film-logo,.film-logo-txt{animation:none!important} .film-scene{transition:opacity .4s ease} }
+.film-center{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px}
+.film-ring{position:absolute;top:50%;inset-inline-start:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,200,120,.9),rgba(239,125,31,0) 70%);
+  animation:filmRing .9s cubic-bezier(.2,.7,.3,1) both}
+@keyframes filmRing{0%{transform:scale(.3);opacity:0}30%{opacity:1}100%{transform:scale(9);opacity:0}}
+.film-burst{position:absolute;top:50%;inset-inline-start:50%;width:0;height:0}
+.film-spark{position:absolute;top:0;inset-inline-start:0;width:5px;height:5px;border-radius:50%;background:#ef7d1f;
+  transform:rotate(var(--a)) translateX(0);opacity:0;animation:filmSpark .7s ease-out both}
+@keyframes filmSpark{0%{opacity:1;transform:rotate(var(--a)) translateX(4px)}100%{opacity:0;transform:rotate(var(--a)) translateX(var(--d))}}
+.film-logo{height:62px;width:auto;filter:drop-shadow(0 10px 22px rgba(239,125,31,.4));
+  animation:filmPop .6s cubic-bezier(.34,1.56,.64,1) both}
+.film-logo-txt{font-size:38px;font-weight:900;color:#ef7d1f;animation:filmPop .6s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes filmPop{0%{opacity:0;transform:scale(.35)}70%{opacity:1;transform:scale(1.1)}100%{opacity:1;transform:scale(1)}}
+.film-sub{color:#a85d16;font-size:13.5px;font-weight:700;letter-spacing:.02em;opacity:0;animation:filmRise .5s ease .35s both}
+@keyframes filmRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.film-bar{width:120px;height:4px;border-radius:999px;background:#f3dcb3;overflow:hidden;margin-top:6px;opacity:0;animation:filmRise .4s ease .5s both}
+.film-bar-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#ffb15c,#ef7d1f);animation:filmBarFill 2.9s cubic-bezier(.3,.7,.3,1) .55s forwards}
+@keyframes filmBarFill{to{width:100%}}
+@media (max-width:640px){ .film-logo{height:50px} .film-logo-txt{font-size:30px} }
 
 </style>
 </head>
@@ -4378,97 +4350,34 @@ TVL.app = (function(){
   return app;
 })();
 
-/* ---------- film.js — "از تولید تا بازار" intro film ===================================
-   Entirely CSS/Canvas2D/SVG, no external library, no WebGL, no video file: this session has
-   no outbound network access (so a Three.js CDN load could not be verified here) and no
-   video-generation tool, so this is the honest, fully-testable alternative the user accepted.
-   Runs once after login, overlaying the already-booting dashboard; skip is always available;
-   a small "پخش فیلم" header button replays it anytime. Real data (province list, product
-   totals, rep count) is read fresh from TVL.app.ds at film start — never hardcoded numbers.
-   Respects prefers-reduced-motion (shows the static finale card only). All timers/RAF/
-   listeners are cleaned up on skip/finish so nothing leaks after the film ends. ========= */
+/* ---------- film.js — brand splash (≈4s) ================================================
+   Modern app-launch "splash" pattern (logo pop + glow burst + progress sliver, then a quick
+   portal-style exit into the dashboard) — the standard today's premium apps use for a brand
+   moment, not a multi-scene film. Pure CSS keyframes, no canvas/rAF loop needed for something
+   this short, so there is nothing to desync or leak. Runs once after login, overlaying the
+   already-booting dashboard; skip is always available; a small header button replays it.
+   Respects prefers-reduced-motion by skipping the animation entirely and going straight to
+   the dashboard — the correct reduced-motion behaviour for a decorative splash. All timers
+   are cleared and the DOM node removed on skip or on natural finish. ========================= */
 TVL.film = (function(){
-  const DUR = [4,6,6,5,6,4]; // s1..s6, seconds — short and brisk, not a long cinematic film
-  const KEYS = ['s1','s2','s3','s4','s5','s6'];
-  const BOUNDS = (()=>{ let t=0; return KEYS.map((k,i)=>{ const b=[t,t+DUR[i]]; t+=DUR[i]; return b; }); })();
-  const TOTAL = BOUNDS[BOUNDS.length-1][1];
-
-  // Normalized (0..1) positions inside a 400x320 box, derived from real province lon/lat.
-  const IRAN_BORDER = [[0,10.7],[30.8,21.5],[82.1,32.2],[108.7,49.4],[123.1,66.6],[174.4,64.4],[211.3,62.3],[256.4,53.7],[297.4,51.5],[352.8,55.8],[348.7,116],[338.5,148.2],[354.9,191.1],[365.1,223.4],[359,317.9],[297.4,309.3],[256.4,285.6],[215.4,283.5],[184.6,277],[153.8,255.6],[139.5,236.2],[102.6,221.2],[82.1,212.6],[73.8,180.4],[41,148.2],[24.6,116],[20.5,83.8],[6.2,62.3],[0,10.7]];
-  const PROV_XY = {'تهران':[151.8,90.2],'خراسان رضوی':[320,77.3],'اصفهان':[157.9,154.6],'فارس':[174.4,221.2],'آذربایجان شرقی':[47.2,38.7],'آذربایجان غربی':[22.6,49.4],'خوزستان':[96.4,184.7],'کرمان':[268.7,206.2],'گیلان':[114.9,55.8],'مازندران':[186.7,70.9],'بوشهر':[139.5,236.2],'هرمزگان':[252.3,272.8],'یزد':[213.3,171.8],'همدان':[92.3,109.5],'کرمانشاه':[63.6,120.3],'ایلام':[49.2,135.3],'مرکزی':[116.9,124.6],'زنجان':[92.3,68.7],'اردبیل':[88.2,34.4],'قزوین':[123.1,77.3],'قم':[141.5,113.8],'سمنان':[192.8,92.3],'گلستان':[213.3,66.6],'چهارمحال و بختیاری':[139.5,163.2],'کردستان':[61.5,98.8],'لرستان':[90.3,137.4],'کهگیلویه و بویراحمد':[155.9,197.6]};
-  const FACTORY_XY = [151.8,90.2]; // تهران — illustrative hub point, not a claimed factory address
-
-  let raf=null, t0=null, root=null, canvas=null, ctx=null, running=false, reduced=false;
-  let particles=[], onDone=null, resizeHandler=null;
+  const TOTAL_MS=4000, EXIT_MS=3350;
+  let root=null, timers=[], onDone=null;
 
   function reducedMotion(){ try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
 
-  function realData(app){
-    const ds=app.ds; const F=TVL.fmt;
-    if(!ds||!ds.records) return {products:[],totalUnits:0,provinces:[],repCount:0};
-    const byProd=new Map();
-    const provSet=new Set();
-    let total=0;
-    ds.records.forEach(r=>{ if(!r.product) return; byProd.set(r.product,(byProd.get(r.product)||0)+r.v); total+=r.v; if(r.province) provSet.add(r.province); });
-    const products=[...byProd.entries()].map(([p,v])=>({p,v})).sort((a,b)=>b.v-a.v);
-    return {products,totalUnits:total,provinces:[...provSet],repCount:ds.meta?ds.meta.repCount||0:0,fmt:F};
-  }
-
-  function buildDOM(app,data){
+  function buildDOM(){
     const logoSrc=(document.querySelector('.brand-logo')||{}).src||'';
-    const sceneProducts=['talabar-shokolat-fandoghi','egg-classic-9','tabdili-telawich','makian-kabk']
-      .map(n=>'assets/products/'+n+'.webp');
-    const provNodes=Object.keys(PROV_XY).map(name=>{
-      const on=data.provinces.includes(name); const [x,y]=PROV_XY[name];
-      return '<circle class="film-node'+(on?' on':'')+'" data-name="'+name+'" cx="'+x+'" cy="'+y+'" r="'+(on?3.6:2)+'"></circle>';
-    }).join('');
-    const routeProvs=data.provinces.slice(0,10).map(name=>({name,xy:PROV_XY[name]})).filter(x=>x.xy);
-    const routeLines=routeProvs.map(x=>'<line class="film-route" x1="'+FACTORY_XY[0]+'" y1="'+FACTORY_XY[1]+'" x2="'+x.xy[0]+'" y2="'+x.xy[1]+'"></line>').join('');
-    const packageDots=routeProvs.slice(0,4).map((x,i)=>'<circle class="film-pkg" r="3"><animateMotion dur="1.6s" begin="'+(i*0.35)+'s" repeatCount="indefinite" path="M'+FACTORY_XY[0]+','+FACTORY_XY[1]+' L'+x.xy[0]+','+x.xy[1]+'"></animateMotion></circle>').join('');
-    const topProducts=data.products.slice(0,6);
-    const maxV=topProducts.length?topProducts[0].v:1;
-    const barsHtml=topProducts.map((x,i)=>'<div class="film-bar-row" style="animation-delay:'+(i*0.18)+'s"><span class="film-bar-lbl">'+x.p+'</span><div class="film-bar-track"><div class="film-bar-fill" style="--w:'+Math.round(x.v/maxV*100)+'%"></div></div></div>').join('');
-
-    const html = `
-<div id="filmOverlay" role="dialog" aria-label="فیلم معرفی تِلاونگ">
-  <canvas id="filmCanvas"></canvas>
-  <button id="filmSkip" class="film-skip">رد شدن از فیلم ›</button>
-  <div class="film-scene" data-k="s1">
-    <div class="film-egg"></div>
+    const n=10;
+    const sparks=Array.from({length:n},(_,i)=>{ const ang=(i/n)*360; return '<i class="film-spark" style="--a:'+ang+'deg;--d:'+(60+Math.random()*34)+'px;animation-delay:'+(Math.random()*0.12)+'s"></i>'; }).join('');
+    const html=`
+<div id="filmOverlay" role="dialog" aria-label="تِلاونگ">
+  <button id="filmSkip" class="film-skip">رد شدن ›</button>
+  <div class="film-center">
+    <div class="film-ring"></div>
+    <div class="film-burst">${sparks}</div>
     ${logoSrc?'<img class="film-logo" src="'+logoSrc+'" alt="تِلاونگ">':'<div class="film-logo-txt">تِلاونگ</div>'}
     <div class="film-sub">از تولید تا بازار</div>
-  </div>
-  <div class="film-scene" data-k="s2">
-    <div class="film-scene-title">خط تولید</div>
-    <div class="film-scene-sub">نمایی شماتیک و انیمیشنی — نه فیلم واقعی خط تولید</div>
-  </div>
-  <div class="film-scene" data-k="s3">
-    <div class="film-scene-title">محصولات تِلاونگ</div>
-    <div class="film-showcase">${sceneProducts.map((src,i)=>'<img src="'+src+'" style="--i:'+i+'" alt="">').join('')}</div>
-  </div>
-  <div class="film-scene" data-k="s4">
-    <div class="film-scene-title">توزیع در سراسر کشور</div>
-    <div class="film-scene-sub">استان‌هایی که داده‌ی فروش واقعی دارند روشن شده‌اند — نه ادعای پوشش همه‌ی کشور</div>
-    <svg class="film-map" viewBox="0 0 400 320" preserveAspectRatio="xMidYMid meet">
-      <polygon class="film-iran" points="${IRAN_BORDER.map(p=>p[0]+','+p[1]).join(' ')}"></polygon>
-      <g class="film-routes">${routeLines}</g>
-      <g class="film-nodes">${provNodes}</g>
-      <g class="film-pkgs">${packageDots}</g>
-    </svg>
-  </div>
-  <div class="film-scene" data-k="s5">
-    <div class="film-scene-title">هوش تجاری تِلاونگ</div>
-    <div class="film-kpis">
-      <div class="film-kpi"><b class="film-count" data-to="${data.totalUnits}">0</b><span>واحد فروخته‌شده (کل تاریخچه)</span></div>
-      <div class="film-kpi"><b class="film-count" data-to="${data.provinces.length}">0</b><span>استان با فروش ثبت‌شده</span></div>
-      <div class="film-kpi"><b class="film-count" data-to="${data.repCount}">0</b><span>نماینده</span></div>
-    </div>
-    <div class="film-bars">${barsHtml}</div>
-  </div>
-  <div class="film-scene" data-k="s6">
-    ${logoSrc?'<img class="film-logo sm" src="'+logoSrc+'" alt="تِلاونگ">':'<div class="film-logo-txt sm">تِلاونگ</div>'}
-    <div class="film-tagline">تِلاونگ؛ از تولید تا بازار، با نگاهی به آینده</div>
-    <button class="btn primary film-enter">ورود به داشبورد</button>
+    <div class="film-bar"><div class="film-bar-fill"></div></div>
   </div>
 </div>`;
     const wrap=document.createElement('div'); wrap.innerHTML=html;
@@ -4476,125 +4385,23 @@ TVL.film = (function(){
     return document.getElementById('filmOverlay');
   }
 
-  function initParticles(W,H){
-    particles=[]; const n=Math.min(90,Math.round(W*H/11000));
-    for(let i=0;i<n;i++) particles.push({x:Math.random()*W,y:Math.random()*H,r:1+Math.random()*2.6,vy:0.35+Math.random()*0.7,o:0.25+Math.random()*0.45});
-  }
-
-  function drawBG(ctx,W,H,t){
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='#ef7d1f';
-    particles.forEach(p=>{ p.y-=p.vy; if(p.y<-5){ p.y=H+5; p.x=Math.random()*W; }
-      ctx.globalAlpha=p.o; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); });
-    ctx.globalAlpha=1;
-  }
-
-  function drawScene1(ctx,W,H,t){
-    const cx=W*0.5, cy=H*0.42, pulse=1+0.14*Math.sin(t*3.2);
-    const r=Math.min(W,H)*0.12*pulse;
-    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r*2.6);
-    g.addColorStop(0,'rgba(255,220,160,0.95)'); g.addColorStop(0.45,'rgba(239,125,31,0.5)'); g.addColorStop(1,'rgba(239,125,31,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r*2.6,0,7); ctx.fill();
-    ctx.fillStyle='#fffdf8'; ctx.beginPath(); ctx.ellipse(cx,cy,r*0.62,r*0.82,0,0,7); ctx.fill();
-    ctx.strokeStyle='rgba(239,125,31,.4)'; ctx.lineWidth=2; ctx.stroke();
-  }
-
-  function drawScene2(ctx,W,H,t){
-    const beltY=H*0.6, beltH=12;
-    ctx.fillStyle='#fde3bb'; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle='rgba(239,125,31,.1)'; ctx.lineWidth=1;
-    for(let x=0;x<W;x+=26){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    ctx.fillStyle='#c2590b'; ctx.fillRect(0,beltY,W,beltH);
-    ctx.strokeStyle='#8a3f08'; ctx.lineWidth=1.4;
-    const rollerR=6, spacing=42;
-    for(let x=-spacing;x<W+spacing;x+=spacing){ ctx.save(); ctx.translate(((x - (t*150)%W)+W*2)%W, beltY+beltH+rollerR+3); ctx.rotate(t*6); ctx.beginPath(); for(let a=0;a<6;a++){ const ang=a/6*7; ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*rollerR,Math.sin(ang)*rollerR); } ctx.stroke(); ctx.restore(); }
-    const eggSpacing=64, eggPhase=(t*170)%(eggSpacing);
-    ctx.fillStyle='#fffdf8'; ctx.strokeStyle='#e8caa0'; ctx.lineWidth=1.2;
-    for(let x=-eggSpacing;x<W+eggSpacing;x+=eggSpacing){ const ex=((x+eggPhase)%(W+eggSpacing*2))-eggSpacing;
-      ctx.beginPath(); ctx.ellipse(ex,beltY-12,10,14,0,0,7); ctx.fill(); ctx.stroke(); }
-    const sweepX=(Math.sin(t*2.4)*0.5+0.5)*W;
-    const lg=ctx.createLinearGradient(sweepX-34,0,sweepX+34,0);
-    lg.addColorStop(0,'rgba(255,255,255,0)'); lg.addColorStop(0.5,'rgba(255,220,160,.55)'); lg.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=lg; ctx.fillRect(sweepX-34,0,68,beltY);
-  }
-
-  function drawScene5(ctx,W,H,t,localT){
-    // ambient only; bars/KPIs are DOM for crisp Persian numerals
-  }
-
-  function setScene(root,key){
-    root.querySelectorAll('.film-scene').forEach(el=>{ el.classList.toggle('on', el.dataset.k===key); });
-  }
-
-  function animateCounters(root){
-    root.querySelectorAll('.film-count').forEach(el=>{
-      const to=parseInt(el.dataset.to||'0',10); const dur=1400; const t0=performance.now();
-      function step(ts){ const p=Math.min(1,(ts-t0)/dur); const v=Math.round(to*(1-Math.pow(1-p,3)));
-        el.textContent=(TVL.fmt&&TVL.fmt.n)?TVL.fmt.n(v):String(v);
-        if(p<1) requestAnimationFrame(step); }
-      requestAnimationFrame(step);
-    });
-  }
-
-  function frame(ts){
-    if(!running) return;
-    if(t0===null) t0=ts;
-    const elapsed=(ts-t0)/1000;
-    const W=canvas.width, H=canvas.height;
-    drawBG(ctx,W,H,elapsed);
-    let activeKey=null, localT=0;
-    for(let i=0;i<BOUNDS.length;i++){ if(elapsed>=BOUNDS[i][0]&&elapsed<BOUNDS[i][1]){ activeKey=KEYS[i]; localT=elapsed-BOUNDS[i][0]; break; } }
-    if(!activeKey){ finish(); return; }
-    if(activeKey!==root._lastKey){ root._lastKey=activeKey; setScene(root,activeKey); if(activeKey==='s5') animateCounters(root); }
-    if(activeKey==='s1') drawScene1(ctx,W,H,elapsed);
-    else if(activeKey==='s2') drawScene2(ctx,W,H,localT);
-    raf=requestAnimationFrame(frame);
-  }
-
-  function resize(){
-    if(!canvas) return;
-    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-    initParticles(canvas.width,canvas.height);
-  }
-
   function cleanup(){
-    running=false;
-    if(raf) cancelAnimationFrame(raf);
-    raf=null; t0=null;
-    if(resizeHandler){ window.removeEventListener('resize',resizeHandler); resizeHandler=null; }
+    timers.forEach(clearTimeout); timers=[];
     if(root&&root.parentNode) root.parentNode.removeChild(root);
-    root=null; canvas=null; ctx=null; particles=[];
+    root=null;
   }
 
-  function finish(){ if(root) setScene(root,'s6'); running=false; if(raf) cancelAnimationFrame(raf); }
+  function finish(){ cleanup(); if(onDone) onDone(); }
 
-  /* app.ds loads asynchronously (boot() kicks it off via setTimeout even for the bundled
-     sample), so starting the film immediately after boot() can race ahead of real data being
-     ready — poll briefly for app.ds before building scenes 4/5, rather than silently falling
-     back to an empty/wrong dataset. */
-  function waitForData(app,cb,triesLeft){
-    if(triesLeft===undefined) triesLeft=40; // ~2s at 50ms
-    if(app.ds||triesLeft<=0) return cb();
-    setTimeout(()=>waitForData(app,cb,triesLeft-1),50);
-  }
   function start(app, opts){
     opts=opts||{};
-    if(running) return;
-    reduced=reducedMotion();
-    waitForData(app,()=>{
-      const data=realData(app);
-      root=buildDOM(app,data);
-      canvas=document.getElementById('filmCanvas'); ctx=canvas.getContext('2d');
-      resize(); resizeHandler=resize; window.addEventListener('resize',resizeHandler);
-      root.querySelector('#filmSkip').onclick=()=>{ cleanup(); if(onDone) onDone(); };
-      root.querySelector('.film-enter').onclick=()=>{ cleanup(); if(onDone) onDone(); };
-      onDone=opts.onDone||null;
-      if(reduced){
-        setScene(root,'s6'); animateCounters(root); running=false; return;
-      }
-      running=true; t0=null; root._lastKey=null;
-      raf=requestAnimationFrame(frame);
-    });
+    if(root) return;
+    onDone=opts.onDone||null;
+    if(reducedMotion()){ return; } // skip the decorative splash outright; dashboard is already there
+    root=buildDOM();
+    root.querySelector('#filmSkip').onclick=finish;
+    timers.push(setTimeout(()=>{ if(root) root.classList.add('film-exit'); },EXIT_MS));
+    timers.push(setTimeout(finish,TOTAL_MS));
   }
 
   function stop(){ cleanup(); }
