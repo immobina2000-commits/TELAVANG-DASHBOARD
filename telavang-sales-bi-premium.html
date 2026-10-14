@@ -3280,7 +3280,7 @@ TVL.views.overview={render(app){
   const DIMS=[['rep','نماینده'],['province','استان'],['city','شهر'],['customer','مشتری'],['channel','کانال']];
   /* Hero collage — real product photos only (see assets/SOURCES.md), purely a visual banner;
      no numbers come from or are affected by it. */
-  const heroImgs=['assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp'];
+  const heroImgs=['assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp'];
   const hero='<div class="ov-hero"><div class="ov-hero-txt"><h2>هوش فروش محصولات تِلاونگ</h2><p>'+esc(mt.period.label)+'</p></div><div class="ov-hero-imgs">'+heroImgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div></div>';
   let head=hero+H.periodNote(mt);
   return head+H.blocks(mt,(pm,p)=>{
@@ -3622,7 +3622,7 @@ TVL.views.prod={render(app){
       ['assets/products/talabar-shokolat-fandoghi.webp','شکلات فندوقی'],['assets/products/talabar-ghahve.webp','قهوه'],['assets/products/talabar-moz-chia.webp','موز چیا'],['assets/products/talabar-mix-bari-chia.webp','میکس بری چیا'],['assets/products/talabar-nargil.webp','نارگیلی']
     ]},
     {group:'تخم مرغ تبدیلی',items:[['assets/products/tabdili-telawich.webp','تلاویچ (ساندویچ)'],['assets/products/tabdili-telaroll.webp','تلارول'],['assets/products/tabdili-telara.webp','تلارا (سفیده بطری)']]},
-    {group:'تخم ماکیان',items:[['assets/products/makian-kabk.webp','تخم کبک']]}
+    {group:'تخم ماکیان',items:[['assets/products/makian-kabk.webp','تخم کبک'],['assets/products/makian-baldarchin.webp','تخم بلدرچین']]}
   ];
   const gallery=GALLERY.map(g=>'<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">'+esc(g.group)+'</div><div class="pgallery">'+g.items.map(([src,label])=>
     '<figure class="pcard"><div class="pcard-imgw"><img src="'+src+'" alt="'+esc(label)+'" loading="lazy"></div><figcaption>'+esc(label)+'</figcaption></figure>'

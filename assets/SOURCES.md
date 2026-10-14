@@ -24,15 +24,12 @@ cropped (packaging only, UI chrome removed) and compressed copy of one `raw/` sc
 | tabdili-telaroll.webp | تلارول (سفیده پخته) | assets/tabdili/raw/telaroll-lineup.png | Official |
 | tabdili-telara.webp | تلارا (سفیده پاستوریزه بطری) | assets/tabdili/raw/telara-lineup.png | Official |
 | makian-kabk.webp | تخم کبک | assets/makian/raw/kabk-baldarchin.png | Official |
+| makian-baldarchin.webp | تخم بلدرچین | assets/makian/raw/baldarchin.png | Official |
 
 ## Not available / could not be verified
 
 - **تخم‌مرغ (plain packaged eggs)**: no dedicated image embedded. The user said this product
   is visually generic ("تخم مرغ عادیه") and did not want a special image sourced for it.
-- **تخم بلدرچین (quail egg)**: the telavang.com category page the user screenshotted
-  (`assets/makian/raw/kabk-baldarchin.png`) shows a placeholder/no-photo icon for this item on
-  the live site itself — no real photo was available to embed, so none was used. It is **not**
-  represented anywhere in the premium dashboard's gallery or filters.
 - **Factory, production line, packaging-line, or distribution photography**: none were
   available (no network access to browse telavang.com's media/gallery pages, and none were
   supplied by the user). The dashboard's login-screen illustration and the product filter
