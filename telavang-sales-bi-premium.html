@@ -135,11 +135,15 @@ main{padding:22px 24px 64px;max-width:1500px;margin:0 auto}
 /* product hero banner — real packaging photo (or a colour dot when none exists) at the top of
    every per-product section, so the product's identity is visually obvious everywhere, not
    just one gallery panel. */
-.prod-hero{display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:14px;border-radius:var(--radius-lg);
+.prod-hero{display:flex;align-items:center;gap:14px;padding:12px 18px;margin-bottom:14px;border-radius:var(--radius-lg);flex-wrap:wrap;
   background:linear-gradient(120deg,var(--accent),color-mix(in srgb,var(--accent) 60%,#000 10%));box-shadow:var(--shadow-md)}
 .prod-hero .hero-thumb{height:62px;width:62px;object-fit:contain;background:#fff;border-radius:12px;padding:7px;flex:none;box-shadow:0 6px 16px -4px rgba(0,0,0,.35)}
 .prod-hero .hero-dot{height:16px;width:16px;border-radius:50%;background:#fff;flex:none;opacity:.9}
-.prod-hero .prod-h-t{color:#fff;font-size:19px;font-weight:800;letter-spacing:-.01em;margin:0;text-shadow:0 1px 3px rgba(0,0,0,.25)}
+.prod-hero .prod-h-t{color:#fff;font-size:19px;font-weight:800;letter-spacing:-.01em;margin:0;text-shadow:0 1px 3px rgba(0,0,0,.25);order:-1;width:100%}
+/* small "all the flavors together" strip inside the hero banner */
+.hero-strip{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.hero-strip img{height:40px;width:40px;object-fit:contain;background:#fff;border-radius:9px;padding:4px;flex:none;box-shadow:0 4px 10px -2px rgba(0,0,0,.3);transition:transform .15s ease}
+.hero-strip img:hover{transform:translateY(-3px) scale(1.08);z-index:2;position:relative}
 /* Overview hero collage */
 .ov-hero{position:relative;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:18px;padding:24px 28px;background:var(--brand-grad);display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;box-shadow:var(--shadow-lg)}
 .ov-hero-txt h2{color:#fff;font-size:23px;font-weight:900;margin:0 0 5px;letter-spacing:-.01em}
@@ -3250,12 +3254,22 @@ TVL.vh = (function(){
   const F=TVL.fmt,C=TVL.config,esc=F.esc;
   const accent=p=>{ const x=C.products.find(q=>q.key===p); return x?x.accent:'egg'; };
   /* Real product photos (telavang.com, see assets/SOURCES.md), centralized here so every view
-     that renders a per-product section can show the real packaging, not just a colour dot. */
-  const PRODUCT_THUMB={'تخم‌مرغ':'assets/products/egg-classic-9.webp','تلابار':'assets/products/talabar-shokolat-fandoghi.webp','تخم مرغ تبدیلی':'assets/products/tabdili-telawich.webp','تخم ماکیان':'assets/products/makian-kabk.webp'};
-  const thumb=p=>PRODUCT_THUMB[p]||null;
+     that renders a per-product section can show the real packaging, not just a colour dot.
+     Every flavor/item photo for the group (not just one representative), shown together as a
+     small strip in the hero banner — تلابار shows all 9 flavors side by side, تخم مرغ تبدیلی
+     all 3, تخم ماکیان both. */
+  const PRODUCT_THUMBS={
+    'تخم‌مرغ':['assets/products/egg-classic-9.webp'],
+    'تلابار':['assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-biscuit.webp','assets/products/talabar-peste.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-nargil.webp'],
+    'تخم مرغ تبدیلی':['assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp'],
+    'تخم ماکیان':['assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp']
+  };
+  const thumbs=p=>PRODUCT_THUMBS[p]||[];
+  const thumb=p=>thumbs(p)[0]||null;
+  const heroStrip=p=>{ const imgs=thumbs(p); return imgs.length?('<div class="hero-strip">'+imgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div>'):'<span class="hero-dot" aria-hidden="true"></span>'; };
   function blocks(mt,fn){ const multi=mt.products.length>1;
-    return mt.products.map(p=>{ const img=thumb(p);
-      const hero='<div class="prod-hero" data-accent="'+accent(p)+'">'+(img?'<img class="hero-thumb" src="'+img+'" alt="">':'<span class="hero-dot" aria-hidden="true"></span>')+'<h2 class="prod-h-t">'+esc(p)+'</h2></div>';
+    return mt.products.map(p=>{
+      const hero='<div class="prod-hero" data-accent="'+accent(p)+'">'+heroStrip(p)+'<h2 class="prod-h-t">'+esc(p)+'</h2></div>';
       return '<section class="prod-block" data-accent="'+accent(p)+'" aria-label="'+esc(p)+'">'+hero+fn(mt.by[p],p,multi)+'</section>'; }).join(''); }
   const panel=(title,sub,body,extra)=>'<div class="panel"'+(extra||'')+'><h2>'+title+'</h2>'+(sub?'<p class="sub">'+sub+'</p>':'')+body+'</div>';
   const empty='<div class="panel"><div class="empty">برای این فیلتر داده‌ای وجود ندارد.</div></div>';
@@ -3269,7 +3283,7 @@ TVL.vh = (function(){
   function chg(v,prevVal,d){ if(prevVal===null||prevVal===undefined) return noPrev; if(v===null||v===undefined) return zeroBase; return '<span class="'+F.cls(v)+'">'+F.sgnN(v,d||0)+'</span>'; }
   function gro(g,prevVal){ if(prevVal===null||prevVal===undefined) return noPrev; if(prevVal===0||g===null||g===undefined) return zeroBase; return '<span class="'+F.cls(g)+'">'+F.sgn(g)+'</span>'; }
   const periodNote=mt=>mt.period.note?'<div class="note warn">'+esc(mt.period.note)+'</div>':'';
-  return {accent,thumb,blocks,panel,empty,hasData,dash,chg,gro,periodNote,noPrev,zeroBase};
+  return {accent,thumb,thumbs,heroStrip,blocks,panel,empty,hasData,dash,chg,gro,periodNote,noPrev,zeroBase};
 })();
 
 /* ---------- views/overview.js ---------- */
@@ -3611,8 +3625,8 @@ TVL.views.prod={render(app){
   const rows=mt.products.map(p=>{ const pm=mt.by[p],t=pm.total; return {p,cur:t.cur,prev:t.prev,change:t.change,growth:t.growth,reps:pm.kpi.activeReps,days:pm.kpi.activeDays,avg:pm.kpi.avgDaily,pm}; });
   const cols=[{key:'p',label:'محصول',cell:r=>esc(r.p),csv:r=>r.p},{key:'c',label:'فروش جاری',num:true,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},{key:'pv',label:'قبلی',num:true,cell:r=>H.dash(r.prev,'داده کافی نیست'),csv:r=>r.prev},{key:'ch',label:'تغییر',num:true,cell:r=>H.chg(r.change,r.prev),csv:r=>r.change},{key:'g',label:'رشد',num:true,cell:r=>H.gro(r.growth,r.prev),csv:r=>r.growth},
     {key:'sh',label:'سهم از مجموع محصولات',num:true,cell:r=>'<span class="flat">قابل اعمال نیست</span>'},{key:'ct',label:'مشارکت در تغییر کل',num:true,cell:r=>'<span class="flat">قابل اعمال نیست</span>'},{key:'r',label:'نماینده‌ی فعال',num:true,cell:r=>F.n(r.reps),csv:r=>r.reps},{key:'d',label:'روز فروش',num:true,cell:r=>F.n(r.days),csv:r=>r.days},{key:'a',label:'میانگین هر روز فروش',num:true,cell:r=>F.n(r.avg),csv:r=>r.avg}];
-  const charts=rows.map(r=>{ const b=M.bucket(r.pm.base,'monthly'); const img=H.thumb(r.p);
-    return '<div data-accent="'+H.accent(r.p)+'" class="prod-block" style="margin:0 0 18px"><div class="prod-hero" style="margin-bottom:10px;padding:10px 16px">'+(img?'<img class="hero-thumb" style="height:42px;width:42px" src="'+img+'" alt="">':'<span class="hero-dot"></span>')+'<h3 class="prod-h-t" style="font-size:16px">'+esc(r.p)+' — روند ماهانه</h3></div>'+Ch.slot(Ch.bar(b.map(x=>({l:x.label,v:x.v,tip:'<b>'+esc(x.label)+'</b><br>فروش: '+F.n(x.v)+'<br>تغییر: '+F.sgnN(x.change)+'<br>رشد: '+F.sgn(x.growth)})),{H:210}))+'</div>'; }).join('');
+  const charts=rows.map(r=>{ const b=M.bucket(r.pm.base,'monthly');
+    return '<div data-accent="'+H.accent(r.p)+'" class="prod-block" style="margin:0 0 18px"><div class="prod-hero" style="margin-bottom:10px;padding:10px 16px">'+H.heroStrip(r.p)+'<h3 class="prod-h-t" style="font-size:16px">'+esc(r.p)+' — روند ماهانه</h3></div>'+Ch.slot(Ch.bar(b.map(x=>({l:x.label,v:x.v,tip:'<b>'+esc(x.label)+'</b><br>فروش: '+F.n(x.v)+'<br>تغییر: '+F.sgnN(x.change)+'<br>رشد: '+F.sgn(x.growth)})),{H:210}))+'</div>'; }).join('');
   /* Product photo gallery — real packaging photos supplied by the user from telavang.com
      (see assets/SOURCES.md for provenance of every file). Purely illustrative; no sales
      numbers are derived from or shown inside these cards. */
