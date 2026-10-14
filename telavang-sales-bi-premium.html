@@ -144,21 +144,6 @@ main{padding:22px 24px 64px;max-width:1500px;margin:0 auto}
 .hero-strip{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 .hero-strip img{height:40px;width:40px;object-fit:contain;background:#fff;border-radius:9px;padding:4px;flex:none;box-shadow:0 4px 10px -2px rgba(0,0,0,.3);transition:transform .15s ease}
 .hero-strip img:hover{transform:translateY(-3px) scale(1.08);z-index:2;position:relative}
-/* "از تولید تا مصرف" animated journey strip — CSS-only motion, not a video, not real footage */
-.jr-track{position:relative;display:flex;align-items:center;padding:18px 6px 8px;overflow-x:auto}
-.jr-line{position:absolute;inset-inline:38px;top:34px;height:3px;background:repeating-linear-gradient(90deg,var(--line) 0 8px,transparent 8px 14px);z-index:0}
-.jr-runner{position:absolute;top:27px;inset-inline-start:38px;width:16px;height:16px;border-radius:50%;background:var(--brand-grad);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 22%,transparent),0 3px 8px rgba(0,0,0,.3);z-index:1;animation:jrRun 7s linear infinite}
-@keyframes jrRun{0%{inset-inline-start:38px}100%{inset-inline-start:calc(100% - 54px)}}
-.jr-gap{flex:1;min-width:24px}
-.jr-stop{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:7px;flex:none;width:76px}
-.jr-ic{width:48px;height:48px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);overflow:hidden;animation:jrPulse 7s ease-in-out infinite}
-.jr-ic svg{width:26px;height:26px}
-.jr-ic img{width:100%;height:100%;object-fit:contain;padding:6px;background:#fff}
-.jr-lbl{font-size:11.5px;font-weight:700;color:var(--muted);text-align:center;white-space:nowrap}
-.jr-s0{animation-delay:0s} .jr-s0 .jr-ic{animation-delay:0s}
-.jr-s1 .jr-ic{animation-delay:1.5s} .jr-s2 .jr-ic{animation-delay:3s} .jr-s3 .jr-ic{animation-delay:4.5s} .jr-s4 .jr-ic{animation-delay:6s}
-@keyframes jrPulse{0%,83%,100%{transform:scale(1);box-shadow:var(--shadow)}88%{transform:scale(1.14);box-shadow:0 0 0 6px color-mix(in srgb,var(--brand) 20%,transparent)}}
-@media (prefers-reduced-motion:reduce){ .jr-runner,.jr-ic{animation:none!important} }
 /* Overview hero collage */
 .ov-hero{position:relative;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:18px;padding:24px 28px;background:var(--brand-grad);display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;box-shadow:var(--shadow-lg)}
 .ov-hero-txt h2{color:#fff;font-size:23px;font-weight:900;margin:0 0 5px;letter-spacing:-.01em}
@@ -3311,22 +3296,7 @@ TVL.views.overview={render(app){
      no numbers come from or are affected by it. */
   const heroImgs=['assets/products/egg-classic-6.webp','assets/products/egg-classic-9.webp','assets/products/egg-classic-15.webp','assets/products/egg-classic-20.webp','assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp'];
   const hero='<div class="ov-hero"><div class="ov-hero-txt"><h2>هوش فروش محصولات تِلاونگ</h2><p>'+esc(mt.period.label)+'</p></div><div class="ov-hero-imgs">'+heroImgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div></div>';
-  /* "از تولید تا مصرف" — an animated (CSS-only) schematic journey strip, not a video and not
-     real footage: this session has no video-generation tool and no factory footage was
-     supplied, so nothing claiming to be real production video is shown. The stop icons are
-     simple stylized shapes (same spirit as the login illustration); only the final "محصول
-     نهایی" stop uses real product photos. Captioned in the UI as illustrative. */
-  const journeyStops=[
-    ['دریافت تخم‌مرغ','<circle cx="12" cy="12" r="9" fill="#fff"/><ellipse cx="12" cy="12" rx="5" ry="6.5" fill="#f0b23a"/>'],
-    ['کنترل کیفیت','<circle cx="12" cy="12" r="9" fill="#fff"/><circle cx="12" cy="12" r="6" fill="none" stroke="#0f7a5c" stroke-width="2"/><path d="M9 12l2 2 4-4" fill="none" stroke="#0f7a5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'],
-    ['بسته‌بندی','<circle cx="12" cy="12" r="9" fill="#fff"/><rect x="6" y="7" width="12" height="10" rx="1.5" fill="#ef7d1f"/><path d="M6 10h12M12 7v10" stroke="#c2590b" stroke-width="1.4"/>'],
-    ['توزیع و فروش','<circle cx="12" cy="12" r="9" fill="#fff"/><rect x="4" y="10" width="9" height="5" rx="1" fill="#3457c7"/><path d="M13 11h3l2.5 2.5v1.5h-5.5z" fill="#3457c7"/><circle cx="7.5" cy="16.3" r="1.4" fill="#1d2b5a"/><circle cx="16" cy="16.3" r="1.4" fill="#1d2b5a"/>'],
-    ['محصول نهایی','']
-  ];
-  const journeyIcons=journeyStops.map((s,i)=>'<div class="jr-stop jr-s'+i+'"><div class="jr-ic">'+(s[1]?('<svg viewBox="0 0 24 24">'+s[1]+'</svg>'):'<img src="assets/products/talabar-shokolat-fandoghi.webp" alt="">')+'</div><div class="jr-lbl">'+esc(s[0])+'</div></div>').join('<div class="jr-gap"></div>');
-  const journey=H.panel('از تولید تا مصرف','نمایی ساده و شماتیک از مسیر محصول — نه فیلم واقعی خط تولید (که در این نشست امکان ساخت یا دریافتش نبود)، فقط یک انیمیشن راهنما.',
-    '<div class="jr-track"><div class="jr-line"></div><div class="jr-runner"></div>'+journeyIcons+'</div>');
-  let head=hero+journey+H.periodNote(mt);
+  let head=hero+H.periodNote(mt);
   return head+H.blocks(mt,(pm,p)=>{
     if(!H.hasData(pm)&&!pm.prev) return H.empty;
     const st=story.find(x=>x.product===p); const q=(t,o)=>'<div class="q"><h3>'+t+'</h3>'+(o?'<div class="f">'+esc(o.fact)+'</div><div class="e">'+esc(o.evidence||'')+'</div>'+(o.interp?'<div class="e">'+esc(o.interp)+'</div>':''):'<div class="f flat">داده کافی نیست</div><div class="e">'+esc(mt.period.note||'داده‌ی کافی برای این پرسش نیست.')+'</div>')+'</div>';
