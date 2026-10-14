@@ -310,7 +310,7 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
         <!-- finished product shelf row -->
         <g transform="translate(60,432)" font-family="Vazirmatn,Tahoma,sans-serif">
           <text x="0" y="-14" font-size="12.5" font-weight="700" fill="#fff" fill-opacity=".9">محصولات تِلاونگ</text>
-          <g transform="translate(0,0)"><rect width="56" height="80" rx="8" fill="#fff"/><image href="assets/products/talabar-shokolat-fandoghi.webp" x="5" y="5" width="46" height="70" preserveAspectRatio="xMidYMid meet"/></g>
+          <g transform="translate(0,0)"><rect width="56" height="80" rx="8" fill="#fff"/><image href="assets/products/egg-classic-9.webp" x="5" y="5" width="46" height="70" preserveAspectRatio="xMidYMid meet"/></g>
           <g transform="translate(70,10)"><rect width="56" height="70" rx="8" fill="#fff"/><image href="assets/products/talabar-peste.webp" x="5" y="5" width="46" height="60" preserveAspectRatio="xMidYMid meet"/></g>
           <g transform="translate(140,-6)"><rect width="56" height="86" rx="8" fill="#fff"/><image href="assets/products/tabdili-telawich.webp" x="5" y="5" width="46" height="76" preserveAspectRatio="xMidYMid meet"/></g>
           <g transform="translate(210,14)"><rect width="56" height="66" rx="8" fill="#fff"/><image href="assets/products/tabdili-telaroll.webp" x="5" y="5" width="46" height="56" preserveAspectRatio="xMidYMid meet"/></g>
@@ -3251,7 +3251,7 @@ TVL.vh = (function(){
   const accent=p=>{ const x=C.products.find(q=>q.key===p); return x?x.accent:'egg'; };
   /* Real product photos (telavang.com, see assets/SOURCES.md), centralized here so every view
      that renders a per-product section can show the real packaging, not just a colour dot. */
-  const PRODUCT_THUMB={'تلابار':'assets/products/talabar-shokolat-fandoghi.webp','تخم مرغ تبدیلی':'assets/products/tabdili-telawich.webp','تخم ماکیان':'assets/products/makian-kabk.webp'};
+  const PRODUCT_THUMB={'تخم‌مرغ':'assets/products/egg-classic-9.webp','تلابار':'assets/products/talabar-shokolat-fandoghi.webp','تخم مرغ تبدیلی':'assets/products/tabdili-telawich.webp','تخم ماکیان':'assets/products/makian-kabk.webp'};
   const thumb=p=>PRODUCT_THUMB[p]||null;
   function blocks(mt,fn){ const multi=mt.products.length>1;
     return mt.products.map(p=>{ const img=thumb(p);
@@ -3280,7 +3280,7 @@ TVL.views.overview={render(app){
   const DIMS=[['rep','نماینده'],['province','استان'],['city','شهر'],['customer','مشتری'],['channel','کانال']];
   /* Hero collage — real product photos only (see assets/SOURCES.md), purely a visual banner;
      no numbers come from or are affected by it. */
-  const heroImgs=['assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp'];
+  const heroImgs=['assets/products/egg-classic-9.webp','assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telara.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp'];
   const hero='<div class="ov-hero"><div class="ov-hero-txt"><h2>هوش فروش محصولات تِلاونگ</h2><p>'+esc(mt.period.label)+'</p></div><div class="ov-hero-imgs">'+heroImgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div></div>';
   let head=hero+H.periodNote(mt);
   return head+H.blocks(mt,(pm,p)=>{
@@ -3617,6 +3617,7 @@ TVL.views.prod={render(app){
      (see assets/SOURCES.md for provenance of every file). Purely illustrative; no sales
      numbers are derived from or shown inside these cards. */
   const GALLERY=[
+    {group:'تخم‌مرغ',items:[['assets/products/egg-classic-9.webp','تخم مرغ کلاسیک ۹ عددی']]},
     {group:'تلابار — ۹ طعم',items:[
       ['assets/products/talabar-badam-zamini.webp','بادام زمینی'],['assets/products/talabar-biscuit.webp','بیسکوئیت'],['assets/products/talabar-peste.webp','پسته'],['assets/products/talabar-sib-macha.webp','سیب سبز ماچا'],
       ['assets/products/talabar-shokolat-fandoghi.webp','شکلات فندوقی'],['assets/products/talabar-ghahve.webp','قهوه'],['assets/products/talabar-moz-chia.webp','موز چیا'],['assets/products/talabar-mix-bari-chia.webp','میکس بری چیا'],['assets/products/talabar-nargil.webp','نارگیلی']
