@@ -260,6 +260,60 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
 @media print{ .app-h .h-actions,.fbar,.nav,.chips,.tbl-tools,.pager,.btn,#tip,#toasts{display:none!important} body{background:#fff;color:#000} .app-h{position:static;border:0} .panel,.kpi{box-shadow:none;break-inside:avoid} .tbl-scroll{max-height:none;overflow:visible} section[hidden]{display:none} }
 
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} html{scroll-padding-top:env(safe-area-inset-top,0px)}
+
+/* ===== film.css — "از تولید تا بازار" intro film (Canvas2D + CSS + SVG, no external libs) === */
+#filmOverlay{position:fixed;inset:0;z-index:9997;background:#0a0705;overflow:hidden;direction:rtl}
+#filmCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.film-skip{position:absolute;top:18px;inset-inline-end:18px;z-index:5;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:8px 16px;font-size:12.5px;cursor:pointer;backdrop-filter:blur(6px)}
+.film-skip:hover{background:rgba(255,255,255,.16)}
+.film-scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;pointer-events:none;transition:opacity 1s ease;padding:24px;text-align:center}
+.film-scene.on{opacity:1}
+.film-egg{width:1px;height:1px}
+.film-logo{height:54px;width:auto;filter:drop-shadow(0 6px 20px rgba(239,125,31,.5))}
+.film-logo.sm{height:46px}
+.film-logo-txt{font-size:34px;font-weight:900;color:#ef7d1f}
+.film-logo-txt.sm{font-size:26px}
+.film-sub{color:#f0dcc4;font-size:14px;letter-spacing:.02em}
+.film-scene-title{color:#fff;font-size:22px;font-weight:800}
+.film-scene-sub{color:#cbb89a;font-size:12.5px;max-width:420px}
+/* scene 3 — product showcase */
+.film-showcase{position:relative;width:min(80vw,520px);height:220px}
+.film-showcase img{position:absolute;inset:0;margin:auto;max-height:200px;max-width:160px;object-fit:contain;background:#fff;border-radius:14px;padding:12px;
+  opacity:0;transform:translateX(60px) rotateY(25deg) scale(.9);box-shadow:0 20px 50px rgba(0,0,0,.5);
+  animation:filmShowcase 15s ease-in-out infinite;animation-delay:calc(var(--i) * -1.875s)}
+@keyframes filmShowcase{
+  0%{opacity:0;transform:translateX(60px) rotateY(25deg) scale(.9)}
+  6%{opacity:1;transform:translateX(0) rotateY(0deg) scale(1)}
+  13%{opacity:1;transform:translateX(0) rotateY(0deg) scale(1.03)}
+  19%{opacity:0;transform:translateX(-60px) rotateY(-25deg) scale(.9)}
+  100%{opacity:0}
+}
+/* scene 4 — map */
+.film-map{width:min(70vw,420px);height:auto;filter:drop-shadow(0 10px 30px rgba(0,0,0,.5))}
+.film-iran{fill:rgba(255,255,255,.05);stroke:rgba(239,125,31,.55);stroke-width:1.5}
+.film-node{fill:rgba(255,255,255,.18)}
+.film-node.on{fill:#ffb15c;filter:drop-shadow(0 0 5px rgba(255,177,92,.9));animation:filmNodePulse 2.2s ease-in-out infinite}
+.film-node.on:nth-child(3n){animation-delay:.4s} .film-node.on:nth-child(4n){animation-delay:.8s} .film-node.on:nth-child(5n){animation-delay:1.2s}
+@keyframes filmNodePulse{0%,100%{opacity:.75;r:3.6}50%{opacity:1;r:4.6}}
+.film-route{stroke:rgba(239,125,31,.5);stroke-width:.8;stroke-dasharray:3 3;animation:filmDash 2.4s linear infinite}
+@keyframes filmDash{to{stroke-dashoffset:-12}}
+/* scene 5 — KPIs + bars */
+.film-kpis{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.film-kpi{display:flex;flex-direction:column;align-items:center;gap:4px}
+.film-kpi b{color:#ffb15c;font-size:28px;font-weight:900;font-variant-numeric:tabular-nums}
+.film-kpi span{color:#cbb89a;font-size:11.5px}
+.film-bars{width:min(80vw,460px);display:flex;flex-direction:column;gap:9px}
+.film-bar-row{display:flex;align-items:center;gap:10px;opacity:0;animation:filmFadeIn .6s ease forwards}
+@keyframes filmFadeIn{to{opacity:1}}
+.film-bar-lbl{color:#f0dcc4;font-size:11.5px;width:110px;flex:none;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.film-bar-track{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+.film-bar-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#ffb15c,#ef7d1f);animation:filmBarGrow 1.2s ease .3s forwards}
+@keyframes filmBarGrow{to{width:var(--w)}}
+.film-tagline{color:#fff;font-size:17px;font-weight:700;max-width:420px}
+.film-enter{margin-top:6px}
+@media (max-width:640px){ .film-scene-title{font-size:18px} .film-logo{height:42px} .film-kpis{gap:18px} .film-kpi b{font-size:22px} }
+@media (prefers-reduced-motion:reduce){ .film-showcase img,.film-node.on,.film-route,.film-bar-fill{animation:none!important} }
+
 </style>
 </head>
 <body class="locked">
@@ -345,6 +399,7 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
     <button class="btn" id="printBtn">چاپ</button>
     <button class="btn" id="analystBtn" aria-pressed="false" title="کیفیت داده، مغایرت‌گیری، روش محاسبه، تست‌ها">ابزار تحلیلگر</button>
     <button class="btn" id="themeBtn" aria-label="تغییر تم">☾ تیره</button>
+    <button class="btn" id="filmReplayBtn">▶ فیلم معرفی</button>
   </div>
 </header>
 <div id="filters"></div>
@@ -4305,6 +4360,7 @@ TVL.app = (function(){
     $('importBtn').onclick=()=>TVL.upload.open(app);
     $('analystBtn').onclick=()=>{ if(app.tab==='analyst'){ app.gotoTab('ov'); } else app.gotoAnalyst(); };
     $('printBtn').onclick=()=>window.print();
+    $('filmReplayBtn').onclick=()=>TVL.film.start(app,{});
     $('expBtn').onclick=()=>UI.modal('خروجی‌ها','<div class="row"><button class="btn" data-x="records">داده‌ی فیلترشده (CSV)</button><button class="btn" data-x="summary">خلاصه‌ی شاخص‌ها (CSV)</button><button class="btn" data-x="reps">جدول نمایندگان (CSV)</button><button class="btn" data-x="alerts">فهرست هشدارها (CSV)</button></div><p class="sub">خروجی‌ها بر پایه‌ی فیلترها و بازه‌ی فعلی ساخته می‌شوند. برای چاپ/PDF از دکمه‌ی «چاپ» استفاده کنید.</p>');
     document.addEventListener('click',e=>{ const b=e.target.closest('[data-x]'); if(!b) return; const k=b.dataset.x; UI.closeModal(); if(k==='records') UI.download('records-filtered.csv',TVL.export.records(app.mt)); if(k==='summary') UI.download('summary.csv',TVL.export.summary(app.mt)); if(k==='reps') UI.download('representatives.csv',TVL.export.reps(app.mt)); if(k==='alerts') UI.download('alerts.csv',TVL.export.alerts(app.alerts)); });
     let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(app.ds) TVL.charts.flush($('view')); },180); });
@@ -4316,9 +4372,232 @@ TVL.app = (function(){
   return app;
 })();
 
+/* ---------- film.js — "از تولید تا بازار" intro film ===================================
+   Entirely CSS/Canvas2D/SVG, no external library, no WebGL, no video file: this session has
+   no outbound network access (so a Three.js CDN load could not be verified here) and no
+   video-generation tool, so this is the honest, fully-testable alternative the user accepted.
+   Runs once after login, overlaying the already-booting dashboard; skip is always available;
+   a small "پخش فیلم" header button replays it anytime. Real data (province list, product
+   totals, rep count) is read fresh from TVL.app.ds at film start — never hardcoded numbers.
+   Respects prefers-reduced-motion (shows the static finale card only). All timers/RAF/
+   listeners are cleaned up on skip/finish so nothing leaks after the film ends. ========= */
+TVL.film = (function(){
+  const DUR = [10,15,15,12,18,10]; // s1..s6, seconds
+  const KEYS = ['s1','s2','s3','s4','s5','s6'];
+  const BOUNDS = (()=>{ let t=0; return KEYS.map((k,i)=>{ const b=[t,t+DUR[i]]; t+=DUR[i]; return b; }); })();
+  const TOTAL = BOUNDS[BOUNDS.length-1][1];
+
+  // Normalized (0..1) positions inside a 400x320 box, derived from real province lon/lat.
+  const IRAN_BORDER = [[0,10.7],[30.8,21.5],[82.1,32.2],[108.7,49.4],[123.1,66.6],[174.4,64.4],[211.3,62.3],[256.4,53.7],[297.4,51.5],[352.8,55.8],[348.7,116],[338.5,148.2],[354.9,191.1],[365.1,223.4],[359,317.9],[297.4,309.3],[256.4,285.6],[215.4,283.5],[184.6,277],[153.8,255.6],[139.5,236.2],[102.6,221.2],[82.1,212.6],[73.8,180.4],[41,148.2],[24.6,116],[20.5,83.8],[6.2,62.3],[0,10.7]];
+  const PROV_XY = {'تهران':[151.8,90.2],'خراسان رضوی':[320,77.3],'اصفهان':[157.9,154.6],'فارس':[174.4,221.2],'آذربایجان شرقی':[47.2,38.7],'آذربایجان غربی':[22.6,49.4],'خوزستان':[96.4,184.7],'کرمان':[268.7,206.2],'گیلان':[114.9,55.8],'مازندران':[186.7,70.9],'بوشهر':[139.5,236.2],'هرمزگان':[252.3,272.8],'یزد':[213.3,171.8],'همدان':[92.3,109.5],'کرمانشاه':[63.6,120.3],'ایلام':[49.2,135.3],'مرکزی':[116.9,124.6],'زنجان':[92.3,68.7],'اردبیل':[88.2,34.4],'قزوین':[123.1,77.3],'قم':[141.5,113.8],'سمنان':[192.8,92.3],'گلستان':[213.3,66.6],'چهارمحال و بختیاری':[139.5,163.2],'کردستان':[61.5,98.8],'لرستان':[90.3,137.4],'کهگیلویه و بویراحمد':[155.9,197.6]};
+  const FACTORY_XY = [151.8,90.2]; // تهران — illustrative hub point, not a claimed factory address
+
+  let raf=null, t0=null, root=null, canvas=null, ctx=null, running=false, reduced=false;
+  let particles=[], onDone=null, resizeHandler=null;
+
+  function reducedMotion(){ try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+
+  function realData(app){
+    const ds=app.ds; const F=TVL.fmt;
+    if(!ds||!ds.records) return {products:[],totalUnits:0,provinces:[],repCount:0};
+    const byProd=new Map();
+    const provSet=new Set();
+    let total=0;
+    ds.records.forEach(r=>{ if(!r.product) return; byProd.set(r.product,(byProd.get(r.product)||0)+r.v); total+=r.v; if(r.province) provSet.add(r.province); });
+    const products=[...byProd.entries()].map(([p,v])=>({p,v})).sort((a,b)=>b.v-a.v);
+    return {products,totalUnits:total,provinces:[...provSet],repCount:ds.meta?ds.meta.repCount||0:0,fmt:F};
+  }
+
+  function buildDOM(app,data){
+    const logoSrc=(document.querySelector('.brand-logo')||{}).src||'';
+    const sceneProducts=['talabar-shokolat-fandoghi','talabar-peste','talabar-badam-zamini','egg-classic-9','tabdili-telawich','makian-kabk','talabar-nargil','talabar-ghahve']
+      .map(n=>'assets/products/'+n+'.webp');
+    const provNodes=Object.keys(PROV_XY).map(name=>{
+      const on=data.provinces.includes(name); const [x,y]=PROV_XY[name];
+      return '<circle class="film-node'+(on?' on':'')+'" data-name="'+name+'" cx="'+x+'" cy="'+y+'" r="'+(on?3.6:2)+'"></circle>';
+    }).join('');
+    const routeLines=data.provinces.slice(0,10).map(name=>{ const xy=PROV_XY[name]; if(!xy) return ''; return '<line class="film-route" x1="'+FACTORY_XY[0]+'" y1="'+FACTORY_XY[1]+'" x2="'+xy[0]+'" y2="'+xy[1]+'"></line>'; }).join('');
+    const topProducts=data.products.slice(0,6);
+    const maxV=topProducts.length?topProducts[0].v:1;
+    const barsHtml=topProducts.map((x,i)=>'<div class="film-bar-row" style="animation-delay:'+(i*0.18)+'s"><span class="film-bar-lbl">'+x.p+'</span><div class="film-bar-track"><div class="film-bar-fill" style="--w:'+Math.round(x.v/maxV*100)+'%"></div></div></div>').join('');
+
+    const html = `
+<div id="filmOverlay" role="dialog" aria-label="فیلم معرفی تِلاونگ">
+  <canvas id="filmCanvas"></canvas>
+  <button id="filmSkip" class="film-skip">رد شدن از فیلم ›</button>
+  <div class="film-scene" data-k="s1">
+    <div class="film-egg"></div>
+    ${logoSrc?'<img class="film-logo" src="'+logoSrc+'" alt="تِلاونگ">':'<div class="film-logo-txt">تِلاونگ</div>'}
+    <div class="film-sub">از تولید تا بازار</div>
+  </div>
+  <div class="film-scene" data-k="s2">
+    <div class="film-scene-title">خط تولید</div>
+    <div class="film-scene-sub">نمایی شماتیک و انیمیشنی — نه فیلم واقعی خط تولید</div>
+  </div>
+  <div class="film-scene" data-k="s3">
+    <div class="film-scene-title">محصولات تِلاونگ</div>
+    <div class="film-showcase">${sceneProducts.map((src,i)=>'<img src="'+src+'" style="--i:'+i+'" alt="">').join('')}</div>
+  </div>
+  <div class="film-scene" data-k="s4">
+    <div class="film-scene-title">توزیع در سراسر کشور</div>
+    <div class="film-scene-sub">استان‌هایی که داده‌ی فروش واقعی دارند روشن شده‌اند — نه ادعای پوشش همه‌ی کشور</div>
+    <svg class="film-map" viewBox="0 0 400 320" preserveAspectRatio="xMidYMid meet">
+      <polygon class="film-iran" points="${IRAN_BORDER.map(p=>p[0]+','+p[1]).join(' ')}"></polygon>
+      <g class="film-routes">${routeLines}</g>
+      <g class="film-nodes">${provNodes}</g>
+    </svg>
+  </div>
+  <div class="film-scene" data-k="s5">
+    <div class="film-scene-title">هوش تجاری تِلاونگ</div>
+    <div class="film-kpis">
+      <div class="film-kpi"><b class="film-count" data-to="${data.totalUnits}">0</b><span>واحد فروخته‌شده (کل تاریخچه)</span></div>
+      <div class="film-kpi"><b class="film-count" data-to="${data.provinces.length}">0</b><span>استان با فروش ثبت‌شده</span></div>
+      <div class="film-kpi"><b class="film-count" data-to="${data.repCount}">0</b><span>نماینده</span></div>
+    </div>
+    <div class="film-bars">${barsHtml}</div>
+  </div>
+  <div class="film-scene" data-k="s6">
+    ${logoSrc?'<img class="film-logo sm" src="'+logoSrc+'" alt="تِلاونگ">':'<div class="film-logo-txt sm">تِلاونگ</div>'}
+    <div class="film-tagline">تِلاونگ؛ از تولید تا بازار، با نگاهی به آینده</div>
+    <button class="btn primary film-enter">ورود به داشبورد</button>
+  </div>
+</div>`;
+    const wrap=document.createElement('div'); wrap.innerHTML=html;
+    document.body.appendChild(wrap.firstElementChild);
+    return document.getElementById('filmOverlay');
+  }
+
+  function initParticles(W,H){
+    particles=[]; const n=Math.min(70,Math.round(W*H/16000));
+    for(let i=0;i<n;i++) particles.push({x:Math.random()*W,y:Math.random()*H,r:0.6+Math.random()*1.8,vy:0.08+Math.random()*0.22,o:0.15+Math.random()*0.4});
+  }
+
+  function drawBG(ctx,W,H,t){
+    ctx.clearRect(0,0,W,H);
+    const g=ctx.createRadialGradient(W*0.5,H*0.42,0,W*0.5,H*0.42,Math.max(W,H)*0.75);
+    g.addColorStop(0,'#241a10'); g.addColorStop(0.55,'#15100a'); g.addColorStop(1,'#0a0705');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(255,180,110,0.55)';
+    particles.forEach(p=>{ p.y-=p.vy; if(p.y<-5){ p.y=H+5; p.x=Math.random()*W; }
+      ctx.globalAlpha=p.o; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); });
+    ctx.globalAlpha=1;
+  }
+
+  function drawScene1(ctx,W,H,t){
+    const cx=W*0.5, cy=H*0.42, pulse=1+0.05*Math.sin(t*1.6);
+    const r=Math.min(W,H)*0.11*pulse;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r*2.4);
+    g.addColorStop(0,'rgba(255,210,140,0.9)'); g.addColorStop(0.4,'rgba(239,125,31,0.45)'); g.addColorStop(1,'rgba(239,125,31,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r*2.4,0,7); ctx.fill();
+    ctx.fillStyle='#fff6e8'; ctx.beginPath(); ctx.ellipse(cx,cy,r*0.62,r*0.82,0,0,7); ctx.fill();
+  }
+
+  function drawScene2(ctx,W,H,t){
+    const beltY=H*0.62, beltH=10;
+    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=1;
+    for(let x=0;x<W;x+=28){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    ctx.fillStyle='#2a2015'; ctx.fillRect(0,beltY,W,beltH);
+    ctx.strokeStyle='rgba(255,255,255,.14)';
+    const rollerR=5, spacing=46, phase=(t*70)%spacing;
+    for(let x=-spacing;x<W+spacing;x+=spacing){ const rx=x+phase*0; ctx.save(); ctx.translate(((x - (t*70)%W)+W*2)%W, beltY+beltH+rollerR+2); ctx.rotate(t*3); ctx.beginPath(); for(let a=0;a<6;a++){ const ang=a/6*7; ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*rollerR,Math.sin(ang)*rollerR); } ctx.stroke(); ctx.restore(); }
+    const eggSpacing=70, eggPhase=(t*90)%(eggSpacing);
+    ctx.fillStyle='#f3ead8';
+    for(let x=-eggSpacing;x<W+eggSpacing;x+=eggSpacing){ const ex=((x+eggPhase)%(W+eggSpacing*2))-eggSpacing;
+      ctx.beginPath(); ctx.ellipse(ex,beltY-10,9,12,0,0,7); ctx.fill(); }
+    const sweepX=(Math.sin(t*1.1)*0.5+0.5)*W;
+    const lg=ctx.createLinearGradient(sweepX-30,0,sweepX+30,0);
+    lg.addColorStop(0,'rgba(120,220,255,0)'); lg.addColorStop(0.5,'rgba(120,220,255,.16)'); lg.addColorStop(1,'rgba(120,220,255,0)');
+    ctx.fillStyle=lg; ctx.fillRect(sweepX-30,0,60,beltY);
+  }
+
+  function drawScene5(ctx,W,H,t,localT){
+    // ambient only; bars/KPIs are DOM for crisp Persian numerals
+  }
+
+  function setScene(root,key){
+    root.querySelectorAll('.film-scene').forEach(el=>{ el.classList.toggle('on', el.dataset.k===key); });
+  }
+
+  function animateCounters(root){
+    root.querySelectorAll('.film-count').forEach(el=>{
+      const to=parseInt(el.dataset.to||'0',10); const dur=1400; const t0=performance.now();
+      function step(ts){ const p=Math.min(1,(ts-t0)/dur); const v=Math.round(to*(1-Math.pow(1-p,3)));
+        el.textContent=(TVL.fmt&&TVL.fmt.n)?TVL.fmt.n(v):String(v);
+        if(p<1) requestAnimationFrame(step); }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function frame(ts){
+    if(!running) return;
+    if(t0===null) t0=ts;
+    const elapsed=(ts-t0)/1000;
+    const W=canvas.width, H=canvas.height;
+    drawBG(ctx,W,H,elapsed);
+    let activeKey=null, localT=0;
+    for(let i=0;i<BOUNDS.length;i++){ if(elapsed>=BOUNDS[i][0]&&elapsed<BOUNDS[i][1]){ activeKey=KEYS[i]; localT=elapsed-BOUNDS[i][0]; break; } }
+    if(!activeKey){ finish(); return; }
+    if(activeKey!==root._lastKey){ root._lastKey=activeKey; setScene(root,activeKey); if(activeKey==='s5') animateCounters(root); }
+    if(activeKey==='s1') drawScene1(ctx,W,H,elapsed);
+    else if(activeKey==='s2') drawScene2(ctx,W,H,localT);
+    raf=requestAnimationFrame(frame);
+  }
+
+  function resize(){
+    if(!canvas) return;
+    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+    initParticles(canvas.width,canvas.height);
+  }
+
+  function cleanup(){
+    running=false;
+    if(raf) cancelAnimationFrame(raf);
+    raf=null; t0=null;
+    if(resizeHandler){ window.removeEventListener('resize',resizeHandler); resizeHandler=null; }
+    if(root&&root.parentNode) root.parentNode.removeChild(root);
+    root=null; canvas=null; ctx=null; particles=[];
+  }
+
+  function finish(){ if(root) setScene(root,'s6'); running=false; if(raf) cancelAnimationFrame(raf); }
+
+  /* app.ds loads asynchronously (boot() kicks it off via setTimeout even for the bundled
+     sample), so starting the film immediately after boot() can race ahead of real data being
+     ready — poll briefly for app.ds before building scenes 4/5, rather than silently falling
+     back to an empty/wrong dataset. */
+  function waitForData(app,cb,triesLeft){
+    if(triesLeft===undefined) triesLeft=40; // ~2s at 50ms
+    if(app.ds||triesLeft<=0) return cb();
+    setTimeout(()=>waitForData(app,cb,triesLeft-1),50);
+  }
+  function start(app, opts){
+    opts=opts||{};
+    if(running) return;
+    reduced=reducedMotion();
+    waitForData(app,()=>{
+      const data=realData(app);
+      root=buildDOM(app,data);
+      canvas=document.getElementById('filmCanvas'); ctx=canvas.getContext('2d');
+      resize(); resizeHandler=resize; window.addEventListener('resize',resizeHandler);
+      root.querySelector('#filmSkip').onclick=()=>{ cleanup(); if(onDone) onDone(); };
+      root.querySelector('.film-enter').onclick=()=>{ cleanup(); if(onDone) onDone(); };
+      onDone=opts.onDone||null;
+      if(reduced){
+        setScene(root,'s6'); animateCounters(root); running=false; return;
+      }
+      running=true; t0=null; root._lastKey=null;
+      raf=requestAnimationFrame(frame);
+    });
+  }
+
+  function stop(){ cleanup(); }
+
+  return {start,stop};
+})();
+
 (function(){
   const U='telavang', P='321telaa', KEY='tvlAuthOk';
-  function unlock(){ document.body.classList.remove('locked'); document.getElementById('authGate').remove(); TVL.app.boot(); }
+  function unlock(){ document.body.classList.remove('locked'); document.getElementById('authGate').remove(); TVL.app.boot();
+    TVL.film.start(TVL.app,{}); }
   function denied(){ document.getElementById('authErr').textContent='نام کاربری یا رمز عبور اشتباه است.'; }
   if(sessionStorage.getItem(KEY)==='1'){ unlock(); }
   else{
