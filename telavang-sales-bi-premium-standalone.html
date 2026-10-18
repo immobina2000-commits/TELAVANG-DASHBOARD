@@ -4237,12 +4237,134 @@ TVL.views.manufacturing={render(app){
     +H.panel('جدول کامل طعم‌ها',null,UI.table('mfgTbl',{cols,rows,pageSize:20,search:(r,q)=>r.name.includes(q),exportName:'talabar-production'+(selMonth?'-'+selMonth:''),sort:['o',-1]}));
 },bind(app,root){ root.querySelectorAll('[data-mfgmonth]').forEach(b=>b.onclick=()=>{ app.ui.mfgMonth=b.dataset.mfgmonth==='__all__'?null:b.dataset.mfgmonth; app.render(); }); }};
 
+/* ---------- views/insights.js ---------- */
+/* ===== views/insights.js — concentration risk + rep stability/volatility + growth capacity.
+   Always computed over the WHOLE network (every product, no filter), latest completed period —
+   filters above the tabs are ignored here on purpose: "what share of total sales rides on a
+   handful of reps/provinces" only means something against the real company total, not a
+   narrowed slice of it (the same guard TVL.historical.isWholeNetwork uses elsewhere). ===== */
+TVL.views.insights={render(app){
+  const F=TVL.fmt,H=TVL.vh,UI=TVL.ui,C=TVL.config,esc=F.esc,M=TVL.metrics,J=TVL.jalali,Fi=TVL.filters;
+  const ds=app.ds;
+  const directProducts=ds.meta.products.filter(p=>{ const cfg=C.products.find(c=>c.key===p); return !(cfg&&cfg.noBreakdown); });
+  const allProducts=ds.meta.products.slice();
+  const stAll=Fi.clone(Fi.initial(ds)); stAll.products=allProducts.slice();
+  const mt=M.compute(ds,Fi.prune(ds,stAll));
+  const companyTotal=allProducts.reduce((s,p)=>s+(mt.by[p]?mt.by[p].total.cur:0),0);
+
+  /* ---- Panel A: concentration — top-3/top-5 reps and top-3 provinces, per product and combined ---- */
+  const concRows=directProducts.map(p=>{
+    const pm=mt.by[p]; if(!pm||!pm.dims||!pm.dims.rep) return null;
+    const reps=pm.dims.rep.slice().sort((a,b)=>b.cur-a.cur);
+    const provs=(pm.dims.province||[]).slice().sort((a,b)=>b.cur-a.cur);
+    const top3R=reps.slice(0,3).reduce((s,r)=>s+r.cur,0), top5R=reps.slice(0,5).reduce((s,r)=>s+r.cur,0);
+    const top3P=provs.slice(0,3).reduce((s,r)=>s+r.cur,0);
+    const total=pm.total.cur;
+    return {p,total,top3R,top5R,top3P,repCount:reps.length,
+      top3RShare:total?top3R/total:null,top5RShare:total?top5R/total:null,top3PShare:total?top3P/total:null,
+      top3Names:reps.slice(0,3).map(r=>r.label)};
+  }).filter(Boolean);
+  const directTotal=concRows.reduce((s,r)=>s+r.total,0);
+  const top3RAbs=concRows.reduce((s,r)=>s+r.top3R,0), top5RAbs=concRows.reduce((s,r)=>s+r.top5R,0), top3PAbs=concRows.reduce((s,r)=>s+r.top3P,0);
+  const concCols=[
+    {key:'p',label:'محصول',cell:r=>esc(r.p),csv:r=>r.p},
+    {key:'t',label:'فروش',num:true,cell:r=>F.n(r.total),csv:r=>r.total},
+    {key:'r3',label:'سهم ۳ نماینده برتر',num:true,cell:r=>r.top3RShare===null?H.dash(null):F.pct(r.top3RShare),csv:r=>r.top3RShare},
+    {key:'r5',label:'سهم ۵ نماینده برتر',num:true,cell:r=>r.top5RShare===null?H.dash(null):F.pct(r.top5RShare),csv:r=>r.top5RShare},
+    {key:'p3',label:'سهم ۳ استان برتر',num:true,cell:r=>r.top3PShare===null?H.dash(null):F.pct(r.top3PShare),csv:r=>r.top3PShare},
+    {key:'n3',label:'۳ نماینده برتر',wrap:true,cell:r=>esc(r.top3Names.join('، ')),csv:r=>r.top3Names.join('، ')}];
+  const concCards=[
+    ['سهم ۳ نماینده برتر از کل کانال نمایندگان',F.pct(directTotal?top3RAbs/directTotal:null)],
+    ['سهم ۳ نماینده برتر از کل فروش شرکت',F.pct(companyTotal?top3RAbs/companyTotal:null)],
+    ['سهم ۵ نماینده برتر از کل کانال نمایندگان',F.pct(directTotal?top5RAbs/directTotal:null)],
+    ['سهم ۳ استان برتر از کل کانال نمایندگان',F.pct(directTotal?top3PAbs/directTotal:null)]
+  ].map(x=>'<div class="kpi"><div class="l">'+x[0]+'</div><div class="v">'+x[1]+'</div></div>').join('');
+
+  /* ---- shared monthly series per representative, combined across direct products, over every
+     COMPLETED month (the in-progress month containing the dataset's latest date is excluded —
+     same completedMonths idea TVL.forecastMonthly already uses, so a half-finished month never
+     reads as a "drop"). ---- */
+  const allMonthKeys=[...new Set(ds.records.filter(r=>directProducts.includes(r.product)).map(r=>J.monthKey(r.year,r.month)))].sort((a,b)=>a-b);
+  const dsMaxMonth=(()=>{ const d=J.fromJdn(ds.meta.dateMax); return J.monthKey(d.y,d.m); })();
+  const completeMonths=allMonthKeys.filter(k=>k!==dsMaxMonth);
+  const byRep=new Map();
+  ds.records.forEach(r=>{
+    if(!r.representative||!directProducts.includes(r.product)) return;
+    const mk2=J.monthKey(r.year,r.month); if(!completeMonths.includes(mk2)) return;
+    if(!byRep.has(r.representative)) byRep.set(r.representative,new Map());
+    const mm=byRep.get(r.representative); mm.set(mk2,(mm.get(mk2)||0)+(r.v||0));
+  });
+  const repStats=[];
+  byRep.forEach((mm,name)=>{
+    const vals=completeMonths.map(k=>mm.get(k)||0);
+    const mean=vals.reduce((a,b)=>a+b,0)/(vals.length||1);
+    if(mean<=0) return;
+    const variance=vals.reduce((s,v)=>s+(v-mean)*(v-mean),0)/vals.length;
+    const std=Math.sqrt(variance), cv=std/mean;
+    const presentMonths=vals.filter(v=>v>0).length;
+    const best=Math.max(...vals), bestIdx=vals.indexOf(best);
+    const cur=vals[vals.length-1]||0;
+    const headroom=Math.max(0,best-cur);
+    repStats.push({name,mean,std,cv,presentMonths,best,bestMonthKey:completeMonths[bestIdx],cur,headroom});
+  });
+  const comparable=repStats.filter(r=>r.presentMonths>=Math.max(1,completeMonths.length-1));
+
+  /* ---- Panel B: stability / volatility ---- */
+  const volCols=[
+    {key:'n',label:'نماینده',cell:r=>esc(r.name),csv:r=>r.name},
+    {key:'m',label:'میانگین ماهانه',num:true,cell:r=>F.n(Math.round(r.mean)),csv:r=>Math.round(r.mean)},
+    {key:'cv',label:'نوسان (CV)',num:true,cell:r=>F.pct(r.cv),csv:r=>r.cv},
+    {key:'pm',label:'ماه‌های فعال',num:true,cell:r=>F.n(r.presentMonths)+' از '+F.n(completeMonths.length),csv:r=>r.presentMonths}];
+  const stableRows=comparable.slice().sort((a,b)=>a.cv-b.cv).slice(0,12);
+  const volatileRows=comparable.slice().sort((a,b)=>b.cv-a.cv).slice(0,12);
+
+  /* ---- Panel C: growth capacity — tiers by current volume, plus headroom to each rep's own
+     historical best month within the same window. ---- */
+  const byCurDesc=repStats.slice().sort((a,b)=>b.cur-a.cur);
+  const n=byCurDesc.length, topN=Math.round(n*0.2), botN=Math.round(n*0.2);
+  const tiers=[
+    {label:'۲۰٪ برتر (حجم فعلی)',rows:byCurDesc.slice(0,topN)},
+    {label:'۶۰٪ میانی',rows:byCurDesc.slice(topN,n-botN)},
+    {label:'۲۰٪ پایینی',rows:byCurDesc.slice(n-botN)}];
+  const tierRows=tiers.map(t=>{
+    const curSum=t.rows.reduce((s,r)=>s+r.cur,0), headroomSum=t.rows.reduce((s,r)=>s+r.headroom,0);
+    return {label:t.label,count:t.rows.length,curSum,headroomSum,
+      d10:companyTotal?curSum*0.1/companyTotal:null,d20:companyTotal?curSum*0.2/companyTotal:null,d50:companyTotal?curSum*0.5/companyTotal:null,
+      hShare:companyTotal?headroomSum/companyTotal:null};
+  });
+  const tierCols=[
+    {key:'l',label:'گروه',cell:r=>esc(r.label),csv:r=>r.label},
+    {key:'c',label:'تعداد',num:true,cell:r=>F.n(r.count),csv:r=>r.count},
+    {key:'s',label:'فروش فعلی',num:true,cell:r=>F.n(Math.round(r.curSum)),csv:r=>Math.round(r.curSum)},
+    {key:'d1',label:'اثر ۱۰٪+ روی کل شرکت',num:true,cell:r=>F.pct(r.d10),csv:r=>r.d10},
+    {key:'d2',label:'اثر ۲۰٪+ روی کل شرکت',num:true,cell:r=>F.pct(r.d20),csv:r=>r.d20},
+    {key:'d5',label:'اثر ۵۰٪+ روی کل شرکت',num:true,cell:r=>F.pct(r.d50),csv:r=>r.d50},
+    {key:'h',label:'ظرفیت رشد (تا سقف تاریخی)',num:true,cell:r=>F.pct(r.hShare),csv:r=>r.hShare}];
+  const headroomCols=[
+    {key:'n',label:'نماینده',cell:r=>esc(r.name),csv:r=>r.name},
+    {key:'c',label:'فروش فعلی',num:true,cell:r=>F.n(Math.round(r.cur)),csv:r=>Math.round(r.cur)},
+    {key:'b',label:'بهترین ماه',num:true,cell:r=>F.n(Math.round(r.best))+' ('+esc(F.monthLabel(J.fromMonthKey(r.bestMonthKey).y,J.fromMonthKey(r.bestMonthKey).m))+')',csv:r=>Math.round(r.best)},
+    {key:'h',label:'فاصله تا اوج',num:true,cell:r=>'<b>'+F.n(Math.round(r.headroom))+'</b>',csv:r=>Math.round(r.headroom)}];
+  const topHeadroom=repStats.slice().sort((a,b)=>b.headroom-a.headroom).slice(0,10);
+
+  return '<div class="note">این تب صرف‌نظر از فیلترهای بالای صفحه، همیشه روی کل شبکه و آخرین ماه‌های کامل محاسبه می‌شود — چون سهم «چند نماینده از کل فروش» فقط در برابر فروش واقعی کل شرکت معنا دارد، نه یک برش فیلترشده از آن.</div>'
+    +H.panel('ریسک تمرکز — نمایندگان و استان‌ها','سهم «کل کانال نمایندگان» یعنی سهم از جمع ۴ محصول مستقیم (بدون زنجیره‌ای‌ها، چون آنجا تفکیک نماینده وجود ندارد)؛ سهم «کل شرکت» شامل زنجیره‌ای‌ها هم می‌شود.',
+      '<div class="kpis">'+concCards+'</div>'+UI.table('insConc',{cols:concCols,rows:concRows,pageSize:10,sort:['r3',-1],exportName:'concentration'}))
+    +H.panel('ثبات و نوسان نمایندگان','ضریب تغییرات (CV) = انحراف معیار ÷ میانگین فروش ماهانه، روی '+F.n(completeMonths.length)+' ماه کامل ('+(completeMonths.length?esc(F.monthLabel(J.fromMonthKey(completeMonths[0]).y,J.fromMonthKey(completeMonths[0]).m))+' تا '+esc(F.monthLabel(J.fromMonthKey(completeMonths[completeMonths.length-1]).y,J.fromMonthKey(completeMonths[completeMonths.length-1]).m)):'')+'). فقط نمایندگانی که حداقل در '+F.n(Math.max(1,completeMonths.length-1))+' از '+F.n(completeMonths.length)+' ماه فروش داشته‌اند مقایسه شده‌اند. عدد پایین‌تر = قابل‌پیش‌بینی‌تر.',
+      '<div class="grid2"><div><h3 style="margin:0 0 8px">باثبات‌ترین</h3>'+UI.table('insStable',{cols:volCols,rows:stableRows,pageSize:12,exportName:'stable-reps'})+'</div>'
+      +'<div><h3 style="margin:0 0 8px">پرنوسان‌ترین</h3>'+UI.table('insVolatile',{cols:volCols,rows:volatileRows,pageSize:12,exportName:'volatile-reps'})+'</div></div>')
+    +H.panel('ظرفیت رشد','نمایندگان بر اساس حجم فعلی به سه گروه تقسیم شده‌اند. ستون‌های «اثر روی کل شرکت» یعنی اگر فروش همان گروه این‌قدر درصد رشد کند، کل فروش شرکت چقدر تغییر می‌کند. «ظرفیت رشد» یعنی اگر هر نماینده فقط به بهترین ماه خودش (در همین بازه) برگردد، این گروه چقدر می‌تواند به کل شرکت اضافه کند.',
+      UI.table('insTiers',{cols:tierCols,rows:tierRows,pageSize:5,exportName:'growth-tiers'})
+      +'<h3 style="margin:16px 0 8px">نمایندگان با بیشترین فاصله تا اوج فروش خودشان</h3>'
+      +UI.table('insHeadroom',{cols:headroomCols,rows:topHeadroom,pageSize:10,sort:['h',-1],exportName:'rep-headroom'}));
+}};
+
 /* ---------- app.js ---------- */
 /* ===== app.js — bootstrap, state, render loop, tabs, theme, persistence (Phase 40, 41, 52, 54) ===== */
 TVL.app = (function(){
   const F=TVL.fmt, UI=TVL.ui, Fi=TVL.filters, esc=F.esc, C=TVL.config;
   const app={ds:null,st:null,mt:null,alerts:[],tab:'ov',ui:{openMs:null,msSearch:'',theme:null,analystTab:'dq'}};
-  const NAV=[['ov','نمای کلی','overview'],['fc','پیش‌بینی','forecast'],['tr','روند فروش','trend'],['rp','نمایندگان','reps'],['wd','الگوی روز فروش','wd'],['bd','روز پیشنهادی خرید','buyday'],['geo','جغرافیا','geo'],['pop','سهم هر نماینده در استان','pop'],['prod','محصولات','prod'],['mfg','تولید تلابار','manufacturing'],['cust','مشتریان','cust'],['al','هشدارها و فرصت‌ها','al'],['dt','داده‌ی جزئی','raw']];
+  const NAV=[['ov','نمای کلی','overview'],['fc','پیش‌بینی','forecast'],['tr','روند فروش','trend'],['rp','نمایندگان','reps'],['wd','الگوی روز فروش','wd'],['bd','روز پیشنهادی خرید','buyday'],['geo','جغرافیا','geo'],['pop','سهم هر نماینده در استان','pop'],['prod','محصولات','prod'],['mfg','تولید تلابار','manufacturing'],['cust','مشتریان','cust'],['ins','ریسک تمرکز و رشد','insights'],['al','هشدارها و فرصت‌ها','al'],['dt','داده‌ی جزئی','raw']];
   const $=id=>document.getElementById(id);
 
   function bundledBytes(){ const el=$('bundled-xlsx'); if(!el) return null; const bin=atob(el.textContent.trim()); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
