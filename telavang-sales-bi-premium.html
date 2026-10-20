@@ -71,11 +71,8 @@ h1,h2,h3{margin:0;line-height:1.4}
 body.locked > :not(#authGate){display:none!important}
 #authGate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(1100px 600px at 15% 10%,rgba(239,125,31,.10),transparent 60%),radial-gradient(900px 500px at 90% 90%,rgba(15,122,92,.08),transparent 55%),var(--bg,#f4f5f7);padding:20px}
-.gate-wrap{display:flex;width:100%;max-width:880px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow-lg,0 20px 48px rgba(0,0,0,.2));background:var(--surface)}
-.gate-art{flex:1 1 52%;min-width:0;position:relative;display:flex;flex-direction:column}
-.gate-art svg{display:block;width:100%;height:auto}
-.gate-art-cap{position:absolute;bottom:10px;inset-inline:0;text-align:center;font-size:10.5px;color:#fff;opacity:.75;padding:0 14px}
-#authGate .box{flex:1 1 48%;min-width:0;background:var(--surface,#fff);padding:40px 34px;width:100%;text-align:center;display:flex;flex-direction:column;justify-content:center}
+.gate-wrap{display:flex;width:100%;max-width:400px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow-lg,0 20px 48px rgba(0,0,0,.2));background:var(--surface)}
+#authGate .box{flex:1 1 100%;min-width:0;background:var(--surface,#fff);padding:40px 34px;width:100%;text-align:center;display:flex;flex-direction:column;justify-content:center}
 #authGate .logo{font-size:27px;font-weight:900;color:var(--brand-ink,#c2590b);margin-bottom:8px;letter-spacing:-.01em}
 #authGate h2{font-size:14.5px;color:var(--muted,#666);font-weight:500;margin:0 0 22px;line-height:1.6}
 #authGate input{width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:11px;border:1px solid var(--line,#ccc);border-radius:var(--radius-sm,8px);font-size:14px;font-family:inherit;background:var(--surface2);transition:border-color .15s ease,box-shadow .15s ease}
@@ -87,7 +84,7 @@ body.locked > :not(#authGate){display:none!important}
 #authGate button[type=submit]{width:100%;padding:11px;border:none;border-radius:var(--radius-sm,8px);background:var(--brand-grad);color:#fff;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px -4px rgba(239,125,31,.5);transition:transform .15s ease,box-shadow .15s ease}
 #authGate button[type=submit]:hover{transform:translateY(-1px);box-shadow:0 8px 20px -4px rgba(239,125,31,.6)}
 #authGate .err{color:#d33;font-size:12px;min-height:16px;margin-top:8px}
-@media (max-width:720px){ .gate-wrap{flex-direction:column;max-width:420px;max-height:92vh;overflow-y:auto} .gate-art{flex:none} .gate-art svg{max-height:230px;object-fit:cover} .gate-art-cap{position:static;color:var(--muted);opacity:1;padding:6px 14px;background:var(--brand-ink)} #authGate .box{padding:26px 24px} }
+@media (max-width:720px){ .gate-wrap{max-height:92vh;overflow-y:auto} #authGate .box{padding:26px 24px} }
 
 .app-h .brand{display:flex;align-items:center;gap:10px}
 .brand-logo{height:30px;width:auto;flex:none;display:block}
@@ -297,62 +294,6 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
 <body class="locked">
 <div id="authGate">
   <div class="gate-wrap">
-    <div class="gate-art" aria-hidden="true">
-      <svg viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="gArt1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb15c"/><stop offset="1" stop-color="#ef7d1f"/></linearGradient>
-          <linearGradient id="gArt2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".22"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
-        </defs>
-        <rect width="560" height="560" rx="28" fill="url(#gArt1)"/>
-        <rect width="560" height="280" rx="28" fill="url(#gArt2)"/>
-        <g fill="#fff" fill-opacity=".10">
-          <circle cx="60" cy="490" r="90"/><circle cx="520" cy="60" r="70"/><circle cx="500" cy="500" r="40"/>
-        </g>
-        <!-- conveyor line -->
-        <line x1="70" y1="300" x2="490" y2="300" stroke="#fff" stroke-opacity=".55" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round"/>
-        <!-- stage 1: egg reception -->
-        <g transform="translate(70,230)">
-          <circle r="46" cy="70" cx="0" fill="#fff" fill-opacity=".95"/>
-          <ellipse cx="0" cy="62" rx="19" ry="25" fill="#f4b23a"/>
-          <ellipse cx="0" cy="62" rx="19" ry="25" fill="none" stroke="#c98a06" stroke-width="2"/>
-          <text x="0" y="135" text-anchor="middle" font-family="Vazirmatn,Tahoma,sans-serif" font-size="12" font-weight="700" fill="#fff">دریافت تخم‌مرغ</text>
-        </g>
-        <!-- stage 2: quality control -->
-        <g transform="translate(210,230)">
-          <circle r="46" cy="70" cx="0" fill="#fff" fill-opacity=".95"/>
-          <circle cx="0" cy="62" r="22" fill="none" stroke="#0f7a5c" stroke-width="4"/>
-          <path d="M-9 62 l7 8 l13 -17" fill="none" stroke="#0f7a5c" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <text x="0" y="135" text-anchor="middle" font-family="Vazirmatn,Tahoma,sans-serif" font-size="12" font-weight="700" fill="#fff">کنترل کیفیت</text>
-        </g>
-        <!-- stage 3: packaging -->
-        <g transform="translate(350,230)">
-          <circle r="46" cy="70" cx="0" fill="#fff" fill-opacity=".95"/>
-          <rect x="-20" y="45" width="40" height="34" rx="4" fill="#ef7d1f"/>
-          <path d="M-20 55 h40 M0 45 v34" stroke="#c2590b" stroke-width="2.5"/>
-          <text x="0" y="135" text-anchor="middle" font-family="Vazirmatn,Tahoma,sans-serif" font-size="12" font-weight="700" fill="#fff">بسته‌بندی</text>
-        </g>
-        <!-- stage 4: distribution -->
-        <g transform="translate(490,230)">
-          <circle r="46" cy="70" cx="0" fill="#fff" fill-opacity=".95"/>
-          <g transform="translate(-20,50)">
-            <rect x="0" y="0" width="26" height="16" rx="2" fill="#3457c7"/>
-            <path d="M26 5 h10 l6 6 v5 h-16Z" fill="#3457c7"/>
-            <circle cx="7" cy="23" r="4" fill="#20294f"/><circle cx="30" cy="23" r="4" fill="#20294f"/>
-          </g>
-          <text x="0" y="135" text-anchor="middle" font-family="Vazirmatn,Tahoma,sans-serif" font-size="12" font-weight="700" fill="#fff">توزیع و فروش</text>
-        </g>
-        <!-- finished product shelf row -->
-        <g transform="translate(60,432)" font-family="Vazirmatn,Tahoma,sans-serif">
-          <text x="0" y="-14" font-size="12.5" font-weight="700" fill="#fff" fill-opacity=".9">محصولات تِلاونگ</text>
-          <g transform="translate(0,0)"><rect width="56" height="80" rx="8" fill="#fff"/><image href="assets/products/egg-classic-9.webp" x="5" y="5" width="46" height="70" preserveAspectRatio="xMidYMid meet"/></g>
-          <g transform="translate(70,10)"><rect width="56" height="70" rx="8" fill="#fff"/><image href="assets/products/talabar-peste.webp" x="5" y="5" width="46" height="60" preserveAspectRatio="xMidYMid meet"/></g>
-          <g transform="translate(140,-6)"><rect width="56" height="86" rx="8" fill="#fff"/><image href="assets/products/tabdili-telawich.webp" x="5" y="5" width="46" height="76" preserveAspectRatio="xMidYMid meet"/></g>
-          <g transform="translate(210,14)"><rect width="56" height="66" rx="8" fill="#fff"/><image href="assets/products/tabdili-telaroll.webp" x="5" y="5" width="46" height="56" preserveAspectRatio="xMidYMid meet"/></g>
-          <g transform="translate(280,2)"><rect width="56" height="78" rx="8" fill="#fff"/><image href="assets/products/makian-kabk.webp" x="5" y="5" width="46" height="68" preserveAspectRatio="xMidYMid meet"/></g>
-          <g transform="translate(350,16)"><rect width="56" height="64" rx="8" fill="#fff"/><image href="assets/products/talabar-nargil.webp" x="5" y="5" width="46" height="54" preserveAspectRatio="xMidYMid meet"/></g>
-        </g>
-      </svg>
-    </div>
     <div class="box">
       <div class="logo">تِلاونگ</div>
       <h2>برای ورود به داشبورد، اطلاعات ورود را وارد کنید</h2>
