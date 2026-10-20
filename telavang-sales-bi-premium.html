@@ -315,7 +315,6 @@ code,.ltr{direction:ltr;unicode-bidi:embed;font-family:ui-monospace,monospace;fo
     <button class="btn" id="printBtn">چاپ</button>
     <button class="btn" id="analystBtn" aria-pressed="false" title="کیفیت داده، مغایرت‌گیری، روش محاسبه، تست‌ها">ابزار تحلیلگر</button>
     <button class="btn" id="themeBtn" aria-label="تغییر تم">☾ تیره</button>
-    <button class="btn" id="filmReplayBtn">▶ فیلم معرفی</button>
   </div>
 </header>
 <div id="filters"></div>
@@ -4398,7 +4397,6 @@ TVL.app = (function(){
     $('importBtn').onclick=()=>TVL.upload.open(app);
     $('analystBtn').onclick=()=>{ if(app.tab==='analyst'){ app.gotoTab('ov'); } else app.gotoAnalyst(); };
     $('printBtn').onclick=()=>window.print();
-    $('filmReplayBtn').onclick=()=>TVL.film.start(app,{});
     $('expBtn').onclick=()=>UI.modal('خروجی‌ها','<div class="row"><button class="btn" data-x="records">داده‌ی فیلترشده (CSV)</button><button class="btn" data-x="summary">خلاصه‌ی شاخص‌ها (CSV)</button><button class="btn" data-x="reps">جدول نمایندگان (CSV)</button><button class="btn" data-x="alerts">فهرست هشدارها (CSV)</button></div><p class="sub">خروجی‌ها بر پایه‌ی فیلترها و بازه‌ی فعلی ساخته می‌شوند. برای چاپ/PDF از دکمه‌ی «چاپ» استفاده کنید.</p>');
     document.addEventListener('click',e=>{ const b=e.target.closest('[data-x]'); if(!b) return; const k=b.dataset.x; UI.closeModal(); if(k==='records') UI.download('records-filtered.csv',TVL.export.records(app.mt)); if(k==='summary') UI.download('summary.csv',TVL.export.summary(app.mt)); if(k==='reps') UI.download('representatives.csv',TVL.export.reps(app.mt)); if(k==='alerts') UI.download('alerts.csv',TVL.export.alerts(app.alerts)); });
     let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(app.ds) TVL.charts.flush($('view')); },180); });
