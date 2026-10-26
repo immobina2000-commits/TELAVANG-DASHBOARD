@@ -3773,8 +3773,7 @@ TVL.views.forecast={render(app){
       {key:'fc',label:'پیش‌بینی پایان ماه',num:true,sortVal:r=>r.insufficient?-1:r.point,cell:r=>r.insufficient?'<span class="flat">—</span>':'<b>'+F.n(r.point)+'</b>'},
       {key:'rem',label:'باقی‌مانده',num:true,sortVal:r=>r.insufficient?-1:(r.point-r.toDate),cell:r=>r.insufficient?'<span class="flat">—</span>':F.n(Math.max(0,r.point-r.toDate))},
       {key:'gr',label:'رشد پیش‌بینی',num:true,sortVal:r=>(r.insufficient||r.baseline<=0)?-1e9:(r.advanced/r.baseline-1),cell:r=>(r.insufficient||r.baseline<=0)?'<span class="flat">داده کافی نیست</span>':'<span class="'+F.cls(r.advanced/r.baseline-1)+'">'+F.sgn(r.advanced/r.baseline-1)+'</span>',csv:r=>r.insufficient?'':r.advanced/r.baseline-1},
-      {key:'conf',label:'میزان اطمینان',sortVal:r=>r.insufficient?-1:({High:3,Medium:2,Low:1}[r.confidence.level]||0),cell:r=>r.insufficient?'—':confBadge(r.confidence.level)},
-      {key:'st',label:'وضعیت',cell:r=>r.insufficient?'<span class="tag t-low">داده کافی نیست</span>':(r.fallback?'<span class="tag t-sugg">داده کم</span>':'<span class="tag t-pos">آماده</span>')}
+      {key:'conf',label:'میزان اطمینان',sortVal:r=>r.insufficient?-1:({High:3,Medium:2,Low:1}[r.confidence.level]||0),cell:r=>r.insufficient?'—':confBadge(r.confidence.level)}
     ];
     return UI.table('fcRepTbl_'+fc.product,{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-reps-'+fc.product,sort:['fc',-1],
       rowKey:r=>r.name,
