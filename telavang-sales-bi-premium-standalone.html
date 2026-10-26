@@ -3863,8 +3863,7 @@ TVL.views.forecast={render(app){
       const cols=[
         {key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)},
         {key:'fc',label:'پیش‌بینی '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)},
-        {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=fmConfOf(r,p); return c?confRank[c]:0; },cell:r=>{ const c=fmConfOf(r,p); return c?confBadge(c):'<span class="flat">—</span>'; }},
-        {key:'status',label:'وضعیت داده',cell:r=>{ const s=fmStatusOf(r,p); return s==='Forecasted'?'<span class="tag t-pos">آماده</span>':'<span class="tag t-low">'+(r[p]?'بدون سابقه':'—')+'</span>'; }}
+        {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=fmConfOf(r,p); return c?confRank[c]:0; },cell:r=>{ const c=fmConfOf(r,p); return c?confBadge(c):'<span class="flat">—</span>'; }}
       ];
       return UI.table('fmRepTbl_'+p,{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-'+p,sort:['fc',-1],
         rowKey:r=>r.name,
@@ -3882,8 +3881,7 @@ TVL.views.forecast={render(app){
     const cols=[{key:'rep',label:'نماینده',sortVal:r=>r.name,cell:r=>esc(r.name)}];
     nf.products.forEach(p=>cols.push({key:'fc_'+p,label:'پیش‌بینی '+p,num:true,sortVal:r=>r[p]&&r[p].status==='Forecasted'?r[p].point:-1,cell:r=>fmProductCell(r,p)}));
     cols.push(
-      {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=overallConf(r); return c?confRank[c]:0; },cell:r=>{ const c=overallConf(r); return c?confBadge(c):'<span class="flat">—</span>'; }},
-      {key:'status',label:'وضعیت داده',cell:r=>nf.products.map(p=>{ const s=fmStatusOf(r,p); return s==='Forecasted'?('<span class="tag t-pos">'+p+': آماده</span>'):('<span class="tag t-low">'+p+': '+(r[p]?'بدون سابقه':'—')+'</span>'); }).join(' ')}
+      {key:'conf',label:'سطح اطمینان',sortVal:r=>{ const c=overallConf(r); return c?confRank[c]:0; },cell:r=>{ const c=overallConf(r); return c?confBadge(c):'<span class="flat">—</span>'; }}
     );
     return UI.table('fmRepTbl_all',{cols,rows,pageSize:25,search:(r,q)=>r.name.includes(q),exportName:'forecast-next-month-reps',sort:['fc_'+nf.products[0],-1],
       rowKey:r=>r.name,
