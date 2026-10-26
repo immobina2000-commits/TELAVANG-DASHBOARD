@@ -4044,8 +4044,7 @@ TVL.views.manufacturing={render(app){
     cols=[
       {key:'n',label:'طعم محصول',cell:r=>esc(short(r.name)),csv:r=>r.name},
       {key:'o',label:'سفارش تولید',num:true,sortVal:r=>r.order,cell:r=>F.n(r.order),csv:r=>r.order},
-      {key:'a',label:'تولید واقعی',num:true,sortVal:r=>r.actual,cell:r=>F.n(r.actual),csv:r=>r.actual},
-      {key:'d',label:'انحراف',num:true,sortVal:r=>r.actual-r.order,cell:r=>H.chg(r.actual-r.order,r.order),csv:r=>r.actual-r.order}
+      {key:'a',label:'تولید واقعی',num:true,sortVal:r=>r.actual,cell:r=>F.n(r.actual),csv:r=>r.actual}
     ];
   } else {
     rows=items;
@@ -4055,7 +4054,6 @@ TVL.views.manufacturing={render(app){
       {key:'n',label:'طعم محصول',cell:r=>esc(short(r.name)),csv:r=>r.name},
       {key:'o',label:'سفارش تولید (کل)',num:true,sortVal:r=>r.totalOrder,cell:r=>F.n(r.totalOrder),csv:r=>r.totalOrder},
       {key:'a',label:'تولید واقعی (کل)',num:true,sortVal:r=>r.totalActual,cell:r=>F.n(r.totalActual),csv:r=>r.totalActual},
-      {key:'d',label:'انحراف',num:true,sortVal:r=>r.totalActual-r.totalOrder,cell:r=>H.chg(r.totalActual-r.totalOrder,r.totalOrder),csv:r=>r.totalActual-r.totalOrder},
       {key:'m',label:'ماه فعال',num:true,sortVal:r=>r.monthsActive,cell:r=>F.n(r.monthsActive)+' از '+F.n(P.MONTH_ORDER.length),csv:r=>r.monthsActive}
     ];
   }
@@ -4063,7 +4061,6 @@ TVL.views.manufacturing={render(app){
   const kpis='<div class="kpis">'
     +TVL.kpi.card({label:'سفارش تولید'+(selMonth?'':' کل'),value:totalOrder,unit:'عدد'})
     +TVL.kpi.card({label:'تولید واقعی'+(selMonth?'':' کل'),value:totalActual,unit:'عدد'})
-    +TVL.kpi.card({label:'انحراف'+(selMonth?'':' کل'),raw:F.sgnN(totalActual-totalOrder),extra:'تولید واقعی − سفارش تولید'})
     +TVL.kpi.card({label:'تعداد طعم محصول',value:rows.length})
     +'</div>';
 
@@ -4151,16 +4148,8 @@ TVL.views.manufacturing={render(app){
     const byMix=items.slice().sort((a,b)=>b.totalActual-a.totalActual);
     const topMix=byMix[0], lowMix=byMix[byMix.length-1];
     const mixBody='<div class="f">بیشترین سهم تولید: «'+esc(short(topMix.name))+'» ('+F.pct(totalActual?topMix.totalActual/totalActual:null)+')؛ کمترین سهم: «'+esc(short(lowMix.name))+'» ('+F.pct(totalActual?lowMix.totalActual/totalActual:null)+', تولید در '+F.n(lowMix.monthsActive)+' از '+F.n(P.MONTH_ORDER.length)+' ماه).</div>';
-    const reliableMonths=P.MONTH_ORDER.filter(m=>{ const rws=P.RAW[m]||[]; if(!rws.length) return false; return rws.filter(r=>r[1]===r[2]).length/rws.length<0.5; });
-    let devBody;
-    if(reliableMonths.length){
-      const li=reliableMonths.map(m=>{ const rws=(P.RAW[m]||[]).map(([name,o,a])=>({name,d:a-o}));
-        const under=rws.slice().sort((a,b)=>a.d-b.d)[0], over=rws.slice().sort((a,b)=>b.d-a.d)[0];
-        return '<li><b>'+m+'</b>: بیشترین کم‌تولیدی «'+esc(short(under.name))+'» ('+F.sgnN(under.d)+')، بیشترین پرتولیدی «'+esc(short(over.name))+'» ('+F.sgnN(over.d)+')</li>'; }).join('');
-      devBody='<div class="e">فقط در ماه‌هایی که سفارش و تولید واقعی واقعاً با هم فرق داشتند (بقیه‌ی ماه‌ها عملاً سفارش = واقعی بوده و قابل تحلیل نیست):</div><ul>'+li+'</ul>';
-    } else devBody='<div class="e">در هیچ ماهی اختلاف معنادار بین سفارش و تولید واقعی ثبت نشده؛ انحراف از برنامه قابل تحلیل نیست.</div>';
     analysis=H.panel('تحلیل و یافته‌ها','خلاصه‌ای که همین لحظه از همین داده محاسبه شده؛ با هر به‌روزرسانی داده خودکار تغییر می‌کند.',
-      '<div class="story">'+q('روند حجم تولید',volBody)+q('ترکیب محصول',mixBody)+q('انحراف از برنامه',devBody)+'</div>');
+      '<div class="story">'+q('روند حجم تولید',volBody)+q('ترکیب محصول',mixBody)+'</div>');
   }
 
   return H.panel('بازه‌ی گزارش',null,monthCtl)
