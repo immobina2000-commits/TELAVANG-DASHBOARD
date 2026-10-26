@@ -3204,7 +3204,7 @@ TVL.dqUI = (function(){
   function dictionary(){ return '<div class="panel"><h2>فرهنگ داده (Data Dictionary)</h2>'+UI.table('dictTbl',{pageSize:0,rows:C.dictionary,cols:['نام فیلد','نام کسب‌وکاری','نوع','منبع','توضیح','نحوه‌ی محاسبه','نمونه'].map((l,i)=>({key:'c'+i,label:l,wrap:true,minw:i===0?120:150,cell:r=>i===0?'<span class="ltr">'+esc(r[i])+'</span>':esc(r[i])}))})+'</div>'; }
   function rules(){ return '<div class="panel"><h2>قواعد کسب‌وکار و آستانه‌ها (Config مرکزی)</h2><p class="sub">تغییر هر قاعده فقط در <span class="ltr">TVL.config</span> انجام می‌شود، نه در توابع پراکنده.</p><pre class="ltr" style="white-space:pre-wrap;background:var(--surface2);padding:12px;border-radius:8px;overflow:auto">'+esc(JSON.stringify({thresholds:C.thresholds,weekday:C.weekday,ingestion:C.ingestion,market:{assumptions:C.market.assumptions,underIndex:C.market.underIndex},dqWeights:C.dq.weights},null,2))+'</pre></div>'; }
   function tests(app){ return '<div class="panel"><h2>مجموعه‌ی تست خودکار (۱۵ تست)</h2><p class="sub">تست‌ها روی داده‌ی فعلی اجرا می‌شوند و با جمع خام فایل تطبیق داده می‌شوند.</p><div class="row"><button class="btn primary" id="runTests">اجرای همه‌ی تست‌ها</button></div><div id="testOut"></div></div>'; }
-  const TABS=[['dq','کیفیت داده',dq],['recon','مغایرت‌گیری',recon],['imp','ورود و نسخه‌ی داده',imports],['method','روش محاسبه',method],['dict','فرهنگ داده',dictionary],['rules','قواعد و آستانه‌ها',rules],['tests','تست‌ها',tests]];
+  const TABS=[['dq','کیفیت داده',dq],['recon','مغایرت‌گیری',recon],['imp','ورود و نسخه‌ی داده',imports],['dict','فرهنگ داده',dictionary],['rules','قواعد و آستانه‌ها',rules],['tests','تست‌ها',tests]];
   function render(app){ const t=app.ui.analystTab||'dq'; const cur=TABS.find(x=>x[0]===t)||TABS[0];
     return '<div class="note">این بخش برای تحلیلگر داده است و در ناوبری اصلی مدیریت نمایش داده نمی‌شود.</div><div class="subnav" role="tablist">'+TABS.map(x=>'<button role="tab" data-atab="'+x[0]+'" class="'+(x[0]===cur[0]?'on':'')+'" aria-selected="'+(x[0]===cur[0])+'">'+x[1]+'</button>').join('')+'</div>'+cur[2](app); }
   function bind(app,root){
@@ -3939,8 +3939,7 @@ TVL.views.forecast={render(app){
     const title=nf.products.length>1?'همه‌ی محصولات':nf.products[0];
     const rest=H.panel('وضعیت پوشش و کیفیت پیش‌بینی — '+esc(title),'میزان پوشش و دقت کلی پیش‌بینی برای نمایندگان در فیلتر فعلی.',nextMonthValidation(nf))
       +nextMonthChart(nf)
-      +H.panel('جدول پیش‌بینی ماه آینده — نمایندگان ('+esc(title)+')','برای مرتب‌سازی روی سرستون کلیک و برای جزئیات هر نماینده روی ردیف کلیک کنید.',nextMonthRepTable(nf))
-      +'<div class="panel">'+nextMonthMethodology(nf)+'</div>';
+      +H.panel('جدول پیش‌بینی ماه آینده — نمایندگان ('+esc(title)+')','برای مرتب‌سازی روی سرستون کلیک و برای جزئیات هر نماینده روی ردیف کلیک کنید.',nextMonthRepTable(nf));
     // Exactly one product selected → the Validation/table/methodology panels (not already
     // per-product-wrapped like the network cards/chart above) get the SAME single accent too,
     // so the whole tab — table sort highlights, badges, everything reading var(--accent) —
@@ -4003,7 +4002,6 @@ TVL.views.forecast={render(app){
       +H.panel('مقایسه‌ی نمایندگان: فعلی در برابر پیش‌بینی','۱۴ نماینده‌ی برتر بر اساس پیش‌بینی پایان ماه.',repBar)
       +H.panel('هشدارهای پیش‌بینی','نمایندگانی که پیش‌بینی آن‌ها نیازمند بررسی بیشتر است (داده‌ی کم، نوسان بالا یا اختلاف زیاد بین روش‌ها).',riskAlerts(fc))
       +H.panel('جدول رتبه‌بندی پیش‌بینی نمایندگان','برای مرتب‌سازی روی سرستون و برای جزئیات هر نماینده روی ردیف کلیک کنید.',repTable(fc))
-      +'<div class="panel">'+methodology(fc,p)+'</div>'
       +'<div class="panel">'+diagnostics(fc)+'</div>';
   });
 },bind(app,root){
