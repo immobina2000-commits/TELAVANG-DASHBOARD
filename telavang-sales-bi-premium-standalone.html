@@ -4199,11 +4199,16 @@ TVL.views.manufacturing={render(app){
 TVL.views.insights={render(app){
   const F=TVL.fmt,H=TVL.vh,UI=TVL.ui,C=TVL.config,esc=F.esc,M=TVL.metrics,J=TVL.jalali,Fi=TVL.filters;
   const ds=app.ds;
-  const directProducts=ds.meta.products.filter(p=>{ const cfg=C.products.find(c=>c.key===p); return !(cfg&&cfg.noBreakdown); });
+  /* Scope switch: "network" (default) ignores the page's top filters on purpose — see the note
+     below — because concentration/stability only mean something against the real whole-company
+     total. "filtered" opts into the current page filter (province/city/rep/product/…) for
+     someone who deliberately wants "risk for just this slice", understanding the tradeoff. */
+  const scope=app.ui.insScope==='filtered'?'filtered':'network';
   const allProducts=ds.meta.products.slice();
-  const stAll=Fi.clone(Fi.initial(ds)); stAll.products=allProducts.slice();
+  const stAll=scope==='filtered'?Fi.clone(app.st):(()=>{ const s=Fi.clone(Fi.initial(ds)); s.products=allProducts.slice(); return s; })();
+  const directProducts=(scope==='filtered'?stAll.products.slice():allProducts).filter(p=>{ const cfg=C.products.find(c=>c.key===p); return !(cfg&&cfg.noBreakdown); });
   const mt=M.compute(ds,Fi.prune(ds,stAll));
-  const companyTotal=allProducts.reduce((s,p)=>s+(mt.by[p]?mt.by[p].total.cur:0),0);
+  const companyTotal=directProducts.reduce((s,p)=>s+(mt.by[p]?mt.by[p].total.cur:0),0);
 
   /* ---- Panel A: concentration — top-3/top-5 reps and top-3 provinces, per product and combined ---- */
   const concRows=directProducts.map(p=>{
@@ -4236,12 +4241,13 @@ TVL.views.insights={render(app){
      COMPLETED month (the in-progress month containing the dataset's latest date is excluded —
      same completedMonths idea TVL.forecastMonthly already uses, so a half-finished month never
      reads as a "drop"). ---- */
-  const allMonthKeys=[...new Set(ds.records.filter(r=>directProducts.includes(r.product)).map(r=>J.monthKey(r.year,r.month)))].sort((a,b)=>a-b);
+  const recMatches=r=>directProducts.includes(r.product)&&(scope==='network'||Fi.match(r,app.st));
+  const allMonthKeys=[...new Set(ds.records.filter(recMatches).map(r=>J.monthKey(r.year,r.month)))].sort((a,b)=>a-b);
   const dsMaxMonth=(()=>{ const d=J.fromJdn(ds.meta.dateMax); return J.monthKey(d.y,d.m); })();
   const completeMonths=allMonthKeys.filter(k=>k!==dsMaxMonth);
   const byRep=new Map();
   ds.records.forEach(r=>{
-    if(!r.representative||!directProducts.includes(r.product)) return;
+    if(!r.representative||!recMatches(r)) return;
     const mk2=J.monthKey(r.year,r.month); if(!completeMonths.includes(mk2)) return;
     if(!byRep.has(r.representative)) byRep.set(r.representative,new Map());
     const mm=byRep.get(r.representative); mm.set(mk2,(mm.get(mk2)||0)+(r.v||0));
@@ -4299,7 +4305,13 @@ TVL.views.insights={render(app){
     {key:'h',label:'فاصله تا اوج',num:true,cell:r=>'<b>'+F.n(Math.round(r.headroom))+'</b>',csv:r=>Math.round(r.headroom)}];
   const topHeadroom=repStats.slice().sort((a,b)=>b.headroom-a.headroom).slice(0,10);
 
-  return '<div class="note">این تب صرف‌نظر از فیلترهای بالای صفحه، همیشه روی کل شبکه و آخرین ماه‌های کامل محاسبه می‌شود — چون سهم «چند نماینده از کل فروش» فقط در برابر فروش واقعی کل شرکت معنا دارد، نه یک برش فیلترشده از آن.</div>'
+  const scopeCtl='<div class="seg" style="margin-bottom:10px">'
+    +'<button data-insscope="network" class="'+(scope==='network'?'on':'')+'">کل شبکه</button>'
+    +'<button data-insscope="filtered" class="'+(scope==='filtered'?'on':'')+'">فیلتر بالای صفحه</button></div>';
+  const scopeNote=scope==='network'
+    ?'<div class="note">در حالت «کل شبکه»، این تب فیلترهای بالای صفحه را نادیده می‌گیرد و همیشه روی کل شبکه و آخرین ماه‌های کامل محاسبه می‌شود — چون سهم «چند نماینده از کل فروش» فقط در برابر فروش واقعی کل شرکت معنا دارد، نه یک برش فیلترشده از آن.</div>'
+    :'<div class="note warn">در حالت «فیلتر بالای صفحه»، همه‌ی اعداد این تب فقط روی همان برش فیلترشده (نه کل شرکت) محاسبه می‌شوند — یعنی مثلاً «سهم ۳ نماینده برتر» نسبت به فروش همان فیلتر است، نه کل شرکت. برای تحلیل ریسک واقعیِ کل شرکت، حالت «کل شبکه» دقیق‌تر است.</div>';
+  return scopeCtl+scopeNote
     +H.panel('ریسک تمرکز — نمایندگان و استان‌ها','سهم از جمع کل فروش هر ۴ محصول با‌هم محاسبه شده است.',
       '<div class="kpis">'+concCards+'</div>'+UI.table('insConc',{cols:concCols,rows:concRows,pageSize:10,sort:['r3',-1],exportName:'concentration'}))
     +H.panel('ثبات و نوسان نمایندگان','ضریب تغییرات (CV) = انحراف معیار ÷ میانگین فروش ماهانه، روی '+F.n(completeMonths.length)+' ماه کامل ('+(completeMonths.length?esc(F.monthLabel(J.fromMonthKey(completeMonths[0]).y,J.fromMonthKey(completeMonths[0]).m))+' تا '+esc(F.monthLabel(J.fromMonthKey(completeMonths[completeMonths.length-1]).y,J.fromMonthKey(completeMonths[completeMonths.length-1]).m)):'')+'). فقط نمایندگانی که حداقل در '+F.n(Math.max(1,completeMonths.length-1))+' از '+F.n(completeMonths.length)+' ماه فروش داشته‌اند مقایسه شده‌اند. عدد پایین‌تر = قابل‌پیش‌بینی‌تر.',
@@ -4309,7 +4321,7 @@ TVL.views.insights={render(app){
       UI.table('insTiers',{cols:tierCols,rows:tierRows,pageSize:5,exportName:'growth-tiers'})
       +'<h3 style="margin:16px 0 8px">نمایندگان با بیشترین فاصله تا اوج فروش خودشان</h3>'
       +UI.table('insHeadroom',{cols:headroomCols,rows:topHeadroom,pageSize:10,sort:['h',-1],exportName:'rep-headroom'}));
-}};
+},bind(app,root){ root.querySelectorAll('[data-insscope]').forEach(b=>b.onclick=()=>{ app.ui.insScope=b.dataset.insscope; app.render(); }); }};
 
 /* ---------- app.js ---------- */
 /* ===== app.js — bootstrap, state, render loop, tabs, theme, persistence (Phase 40, 41, 52, 54) ===== */
