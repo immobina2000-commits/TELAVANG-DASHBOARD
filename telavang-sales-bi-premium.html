@@ -143,6 +143,8 @@ main{padding:22px 24px 64px;max-width:1500px;margin:0 auto}
 .hero-strip img:hover{transform:translateY(-3px) scale(1.08);z-index:2;position:relative}
 /* Overview hero collage */
 .ov-hero{position:relative;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:18px;padding:24px 28px;background:var(--brand-grad);display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;box-shadow:var(--shadow-lg)}
+.ov-hero[data-accent]{background:linear-gradient(135deg,color-mix(in srgb,var(--hero-a) 60%,#fff) 0%,var(--hero-a) 55%,color-mix(in srgb,var(--hero-a) 72%,#000) 100%)}
+.ov-hero[data-accent=egg]{--hero-a:var(--egg)} .ov-hero[data-accent=teal]{--hero-a:var(--teal)} .ov-hero[data-accent=plum]{--hero-a:var(--plum)} .ov-hero[data-accent=indigo]{--hero-a:var(--indigo)} .ov-hero[data-accent=slate]{--hero-a:var(--slate)}
 .ov-hero-txt h2{color:#fff;font-size:23px;font-weight:900;margin:0 0 5px;letter-spacing:-.01em}
 .ov-hero-txt p{color:#fff;opacity:.92;font-size:13px;margin:0}
 .ov-hero-imgs{display:flex;align-items:center}
@@ -3259,7 +3261,18 @@ TVL.vh = (function(){
   function chg(v,prevVal,d){ if(prevVal===null||prevVal===undefined) return noPrev; if(v===null||v===undefined) return zeroBase; return '<span class="'+F.cls(v)+'">'+F.sgnN(v,d||0)+'</span>'; }
   function gro(g,prevVal){ if(prevVal===null||prevVal===undefined) return noPrev; if(prevVal===0||g===null||g===undefined) return zeroBase; return '<span class="'+F.cls(g)+'">'+F.sgn(g)+'</span>'; }
   const periodNote=mt=>mt.period.note?'<div class="note warn">'+esc(mt.period.note)+'</div>':'';
-  return {accent,thumb,thumbs,heroStrip,blocks,panel,empty,hasData,dash,chg,gro,periodNote,noPrev,zeroBase};
+  /* Tiny inline-SVG trend line, no chart library needed. `vals` = oldest→newest; last point gets
+     a dot so the reader can tell which end is "now" without a labelled axis. */
+  function sparkline(vals,opt){
+    opt=opt||{}; const W=opt.w||84,H=opt.h||26,pad=2;
+    if(!vals||vals.length<2) return '<span class="flat" style="font-size:11px">داده کافی نیست</span>';
+    const mn=Math.min(...vals),mx=Math.max(...vals),span=mx-mn||1;
+    const pts=vals.map((v,i)=>[pad+(i*(W-2*pad)/(vals.length-1)),H-pad-((v-mn)/span)*(H-2*pad)]);
+    const path=pts.map(p=>p.join(',')).join(' ');
+    const last=pts[pts.length-1];
+    return '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" aria-hidden="true" style="display:block"><polyline points="'+path+'" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+last[0]+'" cy="'+last[1]+'" r="2.2" fill="var(--accent)"/></svg>';
+  }
+  return {accent,thumb,thumbs,heroStrip,blocks,panel,empty,hasData,dash,chg,gro,periodNote,noPrev,zeroBase,sparkline};
 })();
 
 /* ---------- views/overview.js ---------- */
@@ -3271,7 +3284,8 @@ TVL.views.overview={render(app){
   /* Hero collage — real product photos only (see assets/SOURCES.md), purely a visual banner;
      no numbers come from or are affected by it. */
   const heroImgs=['assets/products/egg-classic-6.webp','assets/products/egg-classic-9.webp','assets/products/egg-classic-15.webp','assets/products/egg-classic-20.webp','assets/products/makian-kabk.webp','assets/products/makian-baldarchin.webp','assets/products/tabdili-telawich.webp','assets/products/tabdili-telawich-spicy.webp','assets/products/tabdili-telawich-export.webp','assets/products/tabdili-telaroll.webp','assets/products/tabdili-telawich-pack5.webp','assets/products/tabdili-telara.webp','assets/products/talabar-shokolat-fandoghi.webp','assets/products/talabar-peste.webp','assets/products/talabar-badam-zamini.webp','assets/products/talabar-sib-macha.webp','assets/products/talabar-ghahve.webp','assets/products/talabar-nargil.webp','assets/products/talabar-moz-chia.webp','assets/products/talabar-mix-bari-chia.webp','assets/products/talabar-biscuit.webp'];
-  const hero='<div class="ov-hero"><div class="ov-hero-txt"><h2>هوش فروش محصولات تِلاونگ</h2><p>'+esc(mt.period.label)+'</p></div><div class="ov-hero-imgs">'+heroImgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div></div>';
+  const heroAccent=mt.products.length===1?H.accent(mt.products[0]):null;
+  const hero='<div class="ov-hero"'+(heroAccent?' data-accent="'+heroAccent+'"':'')+'><div class="ov-hero-txt"><h2>هوش فروش محصولات تِلاونگ</h2><p>'+esc(mt.period.label)+'</p></div><div class="ov-hero-imgs">'+heroImgs.map(src=>'<img src="'+src+'" alt="" loading="lazy">').join('')+'</div></div>';
   let head=hero+H.periodNote(mt);
   return head+H.blocks(mt,(pm,p)=>{
     if(!H.hasData(pm)&&!pm.prev) return H.empty;
@@ -3360,6 +3374,17 @@ TVL.views.reps={render(app){
   const mt=app.mt,F=TVL.fmt,H=TVL.vh,UI=TVL.ui,Ch=TVL.charts,C=TVL.config,esc=F.esc,J=TVL.jalali,M=TVL.metrics;
   return H.periodNote(mt)+H.blocks(mt,(pm,p)=>{
     if(!H.hasData(pm)) return H.empty; const rows=pm.dims.rep;
+    /* Last-6-completed-months total per rep, oldest→newest, for the trend sparkline column —
+       always the real recent history, independent of whatever period the page filter is on. */
+    const repMonthly=(()=>{
+      const byRepMonth=new Map();
+      app.ds.records.filter(r=>r.product===p).forEach(r=>{ const name=r.representative; if(!name) return;
+        const mk=r.year*100+r.month; if(!byRepMonth.has(name)) byRepMonth.set(name,new Map());
+        const mm=byRepMonth.get(name); mm.set(mk,(mm.get(mk)||0)+r.v); });
+      const map=new Map();
+      byRepMonth.forEach((mm,name)=>{ const keys=[...mm.keys()].sort((a,b)=>a-b).slice(-6); map.set(name,keys.map(k=>mm.get(k))); });
+      return map;
+    })();
     const cols=[
       {key:'rank',label:'رتبه',num:true,sticky:1,sortVal:r=>r.rank,cell:r=>F.n(r.rank),csv:r=>r.rank},
       {key:'rep',label:'نماینده',sticky:2,sortVal:r=>r.label,cell:r=>esc(r.label),csv:r=>r.label},
@@ -3369,6 +3394,7 @@ TVL.views.reps={render(app){
       {key:'cur',label:'فروش',num:true,sortVal:r=>r.cur,cell:r=>'<b>'+F.n(r.cur)+'</b>',csv:r=>r.cur},
       {key:'gr',label:'رشد',num:true,sortVal:r=>r.growth,cell:r=>H.gro(r.growth,r.prev),csv:r=>r.growth},
       {key:'sh',label:'سهم',num:true,sortVal:r=>r.share,cell:r=>F.pct(r.share),csv:r=>r.share},
+      {key:'trend',label:'روند ۶ ماه',cell:r=>H.sparkline(repMonthly.get(r.label)),csv:r=>(repMonthly.get(r.label)||[]).join(' | ')},
       /* These columns stay in the export (CSV still gets every field) but are hidden from the
          on-screen table — with 15 columns scrolling past 4 sticky ones, the table was both prone
          to text spilling across the next column (the city "فقط استان" tag was a clear case of
