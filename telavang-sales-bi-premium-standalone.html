@@ -1863,7 +1863,14 @@ TVL.forecast = (function(){
     const points=backtest(recs,allMonths,targetMonthKey);
     const evalResult=evaluateModels(points,allMonths,recs);
     const selection=selectModel(evalResult,points);
-    const liveModels=runModels(recs,targetMonthKey,cutoff,completedMonths);
+    /* backtest() only ever tests models at 25/50/75% of a historical month's selling days, so a
+       live cutoff earlier than 25% has no backtest evidence behind it. m5 (divides today's total
+       by a historical same-point share) is the one model whose error blows up fastest on that kind
+       of untested, noisy denominator — exclude it this early and fall through to a model that was
+       actually evaluated at a cutoff this close. */
+    const liveFrac=baseline.totalW>0?baseline.elapsed/baseline.totalW:0;
+    let liveModels=runModels(recs,targetMonthKey,cutoff,completedMonths);
+    if(liveFrac<0.25) liveModels=liveModels.filter(m=>m.id!=='m5');
     const live=liveForecastFor(selection,evalResult,liveModels,baseline);
     let point=Math.max(baseline.toDate,live.point); // Test #6 — a forecast can never fall below what has already, actually, sold
     const iv=predictionInterval(live.residualSelection,points,point);
